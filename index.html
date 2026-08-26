@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUDITORÍA DIGITAL DE IE · FFIE</title>
+<title>Centro de Control Digital FFIE</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
@@ -218,8 +218,8 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--txt);font-
       </svg>
       <div class="ldv"></div>
       <div class="ltx">
-        <h1 style="font-size:18px">AUDITORÍA DIGITAL DE IE</h1>
-        <p>FFIE · Fondo de Financiamiento de la Infraestructura Educativa · Datos en tiempo real</p>
+        <h1 style="font-size:18px">CENTRO DE CONTROL DIGITAL FFIE</h1>
+        <p>Auditoría Digital IE · Fondo de Financiamiento de la Infraestructura Educativa · Datos en tiempo real</p>
       </div>
     </div>
     <div class="hr2">
@@ -422,6 +422,21 @@ function mieTimeline(d){
   return '<div style="margin-top:8px;border-top:1px solid #E1E6F0;padding-top:7px">'
     +'<div style="font-size:9px;letter-spacing:.8px;color:#5A6A8A;font-weight:800;margin-bottom:3px">HISTORIAL DE VUELOS</div>'+rows+'</div>';
 }
+function mieXtra(d){
+  const sec=(arr,icon,lbl,color)=>{
+    if(!arr||!arr.length) return '';
+    const rows=arr.map(v=>{
+      const vi=MIE_VIDREG.push(v.u)-1;
+      return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">'
+        +'<span style="width:8px;height:8px;border-radius:50%;background:'+color+';flex-shrink:0"></span>'
+        +(v.f?'<span style="font-size:11px;color:#5A6A8A;font-weight:600;width:72px">'+v.f+'</span>':'')
+        +'<a href="javascript:void(0)" onclick="mieVideo('+vi+')" style="font-size:11px;font-weight:700;color:'+color+';text-decoration:none">'+icon+' '+lbl+'</a></div>';
+    }).join('');
+    return '<div style="margin-top:8px;border-top:1px solid #E1E6F0;padding-top:7px">'
+      +'<div style="font-size:9px;letter-spacing:.8px;color:#5A6A8A;font-weight:800;margin-bottom:3px">'+icon+' '+lbl.toUpperCase()+'</div>'+rows+'</div>';
+  };
+  return sec(d.v360,'🌐','Video 360°','#6A1B9A')+sec(d.tl,'⏱','Timelapse','#B8860B');
+}
 function mieShare(slug){
   const url=location.origin+location.pathname+'#ie='+slug;
   const done=()=>{const b=document.getElementById('mie-share-'+slug);if(b){b.textContent='✓ Copiado';setTimeout(()=>{b.textContent='🔗 Copiar link';},1800);}};
@@ -444,7 +459,7 @@ function mieVideo(i){
     m.style.cssText='position:fixed;inset:0;background:rgba(0,15,40,.82);z-index:9500;display:flex;align-items:center;justify-content:center;padding:4vh 4vw';
     m.innerHTML='<div style="background:#0D1B3E;border-radius:14px;overflow:hidden;width:min(1100px,100%);box-shadow:0 20px 60px rgba(0,0,0,.5)">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#002060">'
-      +'<span style="color:#fff;font-weight:700;font-size:13px;font-family:Barlow,sans-serif">🎥 Video del vuelo · SharePoint</span>'
+      +'<span id="mie-modal-title" style="color:#fff;font-weight:700;font-size:13px;font-family:Barlow,sans-serif">🎥 Video del vuelo · SharePoint</span>'
       +'<span style="display:flex;gap:10px;align-items:center">'
       +'<a id="mie-modal-open" href="#" target="_blank" style="color:#FDC800;font-size:12px;font-weight:700;text-decoration:none;font-family:Barlow,sans-serif">Abrir en SharePoint ↗</a>'
       +'<button onclick="mieVideoClose()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1">✕</button></span></div>'
@@ -454,9 +469,20 @@ function mieVideo(i){
     document.body.appendChild(m);
   }
   m.style.display='flex';
-  document.getElementById('mie-modal-open').href=MIE_VIDREG[i];
+  const openL=document.getElementById('mie-modal-open');
+  openL.href=MIE_VIDREG[i];
   const body=document.getElementById('mie-modal-body');
   const st='position:absolute;inset:0;width:100%;height:100%;border:none';
+  const ttl=document.getElementById('mie-modal-title');
+  const yt=u.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+  if(yt){
+    if(ttl)ttl.textContent='🎥 Video · YouTube';
+    openL.textContent='Abrir en YouTube ↗';
+    body.innerHTML='<iframe src="https://www.youtube.com/embed/'+yt[1]+'?rel=0&modestbranding=1" allowfullscreen allow="autoplay; fullscreen; gyroscope; accelerometer; encrypted-media" style="'+st+';background:#000"></iframe>';
+    return;
+  }
+  if(ttl)ttl.textContent='🎥 Video del vuelo · SharePoint';
+  openL.textContent='Abrir en SharePoint ↗';
   const fallback='<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#fff;font-family:Barlow,sans-serif;text-align:center;padding:20px">'
     +'<div style="font-size:40px">🔒</div><div style="font-size:14px;max-width:420px">No fue posible reproducir el video aquí. Ábrelo directamente en SharePoint con tu cuenta corporativa.</div>'
     +'<a href="'+MIE_VIDREG[i]+'" target="_blank" style="background:#FDC800;color:#0D1B3E;font-weight:800;border-radius:8px;padding:9px 18px;text-decoration:none;font-size:13px">Abrir en SharePoint ↗</a></div>';
@@ -479,8 +505,8 @@ function mieVideoClose(){
 function initMapaIE(){
   if(mieMap){ setTimeout(()=>mieMap.invalidateSize(),150); return; }
   mieMap=L.map('mapaIE',{zoomControl:true}).setView([4.6,-74.3],6);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    {attribution:'© OpenStreetMap © CARTO',maxZoom:19}).addTo(mieMap);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(mieMap);
   Object.keys(MIE_COLORS).forEach(k=>mieGroups[k]=L.layerGroup().addTo(mieMap));
   setTimeout(()=>mieMap.invalidateSize(),150);
   mieLoad();
@@ -493,15 +519,22 @@ function mieLoad(){
      const col=n=>hdr.findIndex(h=>h.includes(n));
      const iDep=col('departamento'),iMun=col('municipio'),iIE=col('institucion'),iSede=col('sede'),
            iVis=col('visitas'),iEst=col('estado'),iLat=col('lat'),iLon=col('lon');
-     const iVid=col('video');
+     const iVid=hdr.findIndex(h=>h.includes('video')&&!h.includes('360')&&!h.includes('timelapse'));const iV360=hdr.findIndex(h=>h.includes('360'));const iTl=hdr.findIndex(h=>h.includes('timelapse'));
      const data=[],missing=new Set();
      for(let r=1;r<rows.length;r++){const R=rows[r];
        if(!R||!R[iIE]||!String(R[iIE]).trim())continue;
        const vis=parseInt(R[iVis]); if(!vis&&vis!==0)continue;
+       /* ubicacion por MUNICIPIO (tabla interna); LAT/LON del Sheets solo como respaldo */
        let lat=null,lon=null;
-       if(iLat>=0&&iLon>=0&&R[iLat]&&R[iLon]){lat=parseFloat(String(R[iLat]).replace(',','.'));lon=parseFloat(String(R[iLon]).replace(',','.'));}
-       if(lat===null||isNaN(lat)){const c=MIE_COORDS[mieNk(R[iMun])]; if(!c){missing.add(R[iMun]);continue;} lat=c[0];lon=c[1];}
-       data.push({dep:R[iDep],mun:R[iMun],ie:R[iIE],sede:R[iSede]||'',vis:vis,est:String(R[iEst]||'').trim(),lat:lat,lon:lon,cat:mieCat(R[iEst]),vids:mieVids(String((iVid>=0?R[iVid]:'')||''))});
+       const cM=MIE_COORDS[mieNk(R[iMun])];
+       if(cM){ lat=cM[0]; lon=cM[1]; }
+       else if(iLat>=0&&iLon>=0&&R[iLat]&&R[iLon]){
+         lat=parseFloat(String(R[iLat]).replace(',','.'));lon=parseFloat(String(R[iLon]).replace(',','.'));
+         if(lon>0) lon=-lon;
+         if(isNaN(lat)||lat<-5||lat>14||lon<-80||lon>-66) lat=null;
+       }
+       if(lat===null||isNaN(lat)){missing.add(R[iMun]);continue;}
+       data.push({dep:R[iDep],mun:R[iMun],ie:R[iIE],sede:R[iSede]||'',vis:vis,est:String(R[iEst]||'').trim(),lat:lat,lon:lon,cat:mieCat(R[iEst]),vids:mieVids(String((iVid>=0?R[iVid]:'')||'')),v360:mieVids(String((iV360>=0?R[iV360]:'')||'')),tl:mieVids(String((iTl>=0?R[iTl]:'')||''))});
      }
      const g={}; data.forEach((d,i)=>{const k=d.lat.toFixed(4)+','+d.lon.toFixed(4);(g[k]=g[k]||[]).push(i);});
      Object.values(g).forEach(ix=>{ if(ix.length<2)return; const R=0.055;
@@ -611,7 +644,7 @@ function mieRender(DATA){
       +(stale?' <span style="background:#FDEAED;color:#CE1126;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:800">⚠ '+dias+' días sin vuelo</span>':'')
       +'</div>'
       +obraHtml
-      +mieTimeline(d)+'</div>',{maxWidth:320});
+      +mieTimeline(d)+mieXtra(d)+'</div>',{maxWidth:320});
     MIE_MARKERS[slug]=m;
     mieGroups[d.cat].addLayer(m);
   });
