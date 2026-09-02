@@ -5,7 +5,7 @@
 # desde la pestaña Actions ("Run workflow").
 #
 # Secrets que hay que configurar en Settings → Secrets → Actions:
-#   VISITAS_CSV_URL  → URL export CSV del Sheet de visitas (pestaña BASE_PM)
+#   VISITAS_CSV_URL  → (opcional) CSV del Sheet de visitas; si falta, usa el publicado por defecto
 #   MATRIZ_URL       → (opción A) enlace de descarga directa de la Matriz en SharePoint
 #                      Si no está definido, se usa data/matriz_ffie.xlsx del repo (opción B).
 #   MATRIZ_CSV_URL   → (opción C) si la matriz vive en una pestaña de Google Sheets
@@ -69,7 +69,8 @@ jobs:
 
       - name: Cruzar visitas + avance
         env:
-          VISITAS_CSV_URL: ${{ secrets.VISITAS_CSV_URL }}
+          # Si no se define el secreto, usa el CSV publicado del Sheet (el mismo que ya usan los dashboards)
+          VISITAS_CSV_URL: ${{ secrets.VISITAS_CSV_URL || 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6hh1EfZwAn2ziUXvPleW9dhW16K31BMFATqPgseuDQDqaz0Alk9Q95eAKVRiEk1E24cduIt4izdDe/pub?gid=1008068560&single=true&output=csv' }}
           MATRIZ_CSV_URL: ${{ secrets.MATRIZ_CSV_URL }}
         run: python sync/sync_avances.py ${{ steps.matriz.outputs.arg }} --out data/avances.json
 
