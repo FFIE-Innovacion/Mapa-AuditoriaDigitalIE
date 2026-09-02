@@ -261,6 +261,61 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--txt);font-
 </div>
 
 <script>
+/* ══ AVANCE EN VIVO · Matriz FFIE (SharePoint) → GitHub Actions → data/avances.json ══
+   El % de avance de cada sede se toma del JSON que genera el job diario (sync/sync_avances.py).
+   Si el JSON no está disponible, todo sigue funcionando con el % del Sheet (comportamiento anterior). */
+const AVANCES_URLS=[
+  'data/avances.json',
+  'https://raw.githubusercontent.com/FFIE-Innovacion/Mapa-AuditoriaDigitalIE/main/data/avances.json'
+];
+let AV={byDane:{},byName:{},meta:null};
+function avNk(s){
+  s=String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim().toUpperCase();
+  s=s.replace(/\bI\s*E(?:\s*M)?\b/g,'IE').replace(/\bINSTITUCION EDUCATIVA\b/g,'IE');
+  return s.replace(/\s+/g,' ').trim();
+}
+async function loadAvances(){
+  for(const u of AVANCES_URLS){
+    try{
+      const r=await fetch(u+(u.includes('?')?'&':'?')+'_='+Date.now(),{cache:'no-store'});
+      if(!r.ok) continue;
+      const j=await r.json(); if(!j||!Array.isArray(j.ies)) continue;
+      const byDane={},byName={};
+      j.ies.forEach(x=>{ if(x.dane) byDane[String(x.dane).trim()]=x; byName[avNk(x.ie)+'|'+avNk(x.sede)]=x; });
+      AV={byDane,byName,meta:{generado_en:j.generado_en,mes_corte:j.mes_corte,fuente:j.fuente_avance,n:j.ies.length,url:u}};
+      console.log('avances.json cargado desde',u,'·',j.ies.length,'sedes · generado',j.generado_en);
+      return true;
+    }catch(e){ console.warn('avances.json no disponible en',u,e.message); }
+  }
+  AV={byDane:{},byName:{},meta:null}; return false;
+}
+function avDe(dane,ie,sede){
+  return AV.byDane[String(dane||'').trim()] || AV.byName[avNk(ie)+'|'+avNk(sede)] || null;
+}
+/* Aplica el avance en vivo a una fila de BASE_PM. Los meses ANTERIORES a la última
+   visita conservan su histórico; desde el mes de la última visita en adelante manda la Matriz. */
+function avAplicar(row){
+  const a=avDe(row.dane,row.ie,row.sede);
+  if(!a||a.avance_pct==null) return row;
+  if(a.avance_mes&&row.mes&&row.mes<a.avance_mes) return row;
+  row.avanceSheet=row.avance;
+  row.avance=a.avance_pct;
+  row.avanceFuente='sharepoint';
+  row.avanceVisita=a.ultima_visita||null;
+  row.avanceMes=a.avance_mes||null;
+  row.avanceOrigen=a.avance_origen||null;
+  return row;
+}
+function avCorteTxt(){
+  if(!AV.meta||!AV.meta.generado_en) return '';
+  const d=new Date(AV.meta.generado_en); if(isNaN(d)) return '';
+  return d.toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+}
+function avFechaTxt(iso){
+  if(!iso) return '';
+  const p=String(iso).split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:iso;
+}
+
 /* datos de obra (BASE_PM) para el avance en popups */
 const U={ base:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6hh1EfZwAn2ziUXvPleW9dhW16K31BMFATqPgseuDQDqaz0Alk9Q95eAKVRiEk1E24cduIt4izdDe/pub?gid=1008068560&single=true&output=csv' };
 let D={base:[]};
@@ -312,13 +367,14 @@ function getBase(){
     r.ie!=='INSTITUCION EDUCATIVA' &&
     r.coord && r.coord.trim()!=='' &&
     r.coord!=='COORDINACIÓN'
-  );
+  ).map(avAplicar);
 }
 function loadBase(){
-  return fetch(U.base+'&_='+Date.now(),{cache:'no-store'})
+  const pBase=fetch(U.base+'&_='+Date.now(),{cache:'no-store'})
     .then(r=>r.ok?r.text():Promise.reject(r.status))
     .then(t=>{D.base=parseCSV(t);})
     .catch(e=>{console.warn('BASE_PM no disponible:',e);D.base=[];});
+  return Promise.all([pBase, loadAvances()]);
 }
 function mapaReload(){
   const b=document.getElementById('rbtn'); b.classList.add('spin');
@@ -542,7 +598,7 @@ function mieLoad(){
      MIE_DATA=data;
      mieMeses();
      mieApply();
-     document.getElementById('mie-sync').textContent='Conectado a Google Sheets · actualizado '+new Date().toLocaleString('es-CO');
+     document.getElementById('mie-sync').textContent='Conectado a Google Sheets · actualizado '+new Date().toLocaleString('es-CO')+(AV.meta?' · Avance: Matriz FFIE al '+avCorteTxt():' · Avance: Sheet (Matriz no disponible)');
      if(missing.size){const w=document.getElementById('mie-warn');w.style.display='block';
        w.innerHTML='<b>Municipios sin coordenadas:</b> '+[...missing].join(', ')+'. Agrega columnas LAT y LON en el Sheets.';}
      mieHash();
@@ -629,6 +685,9 @@ function mieRender(DATA){
       obraHtml='<div style="margin-top:7px;border-top:1px solid #E1E6F0;padding-top:7px">'
         +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:#5A6A8A;font-weight:700">Avance de obra</span><span style="font-weight:800;color:'+col+'">'+av.toFixed(1)+'%</span></div>'
         +'<div style="height:6px;background:#E1E6F0;border-radius:3px;overflow:hidden"><div style="width:'+Math.min(av,100)+'%;height:100%;background:'+col+'"></div></div>'
+        +(obra.avanceFuente==='sharepoint'
+            ?'<div style="font-size:10px;color:#5A6A8A;margin-top:4px">Matriz FFIE'+(obra.avanceVisita?' · visita '+avFechaTxt(obra.avanceVisita):'')+(avCorteTxt()?' · actualizado '+avCorteTxt():'')+'</div>'
+            :'<div style="font-size:10px;color:#9AA5BD;margin-top:4px">Fuente: Sheet de visitas</div>')
         +(obra.coord?'<div style="font-size:11px;margin-top:5px"><b>Coordinación:</b> '+obra.coord+'</div>':'')
         +'</div>';
     }
