@@ -1,14 +1,21 @@
 # .github/workflows/sync-avances.yml
 #
-# Corre todos los días a las 6:00 am Bogotá (11:00 UTC), y también cada vez
-# que se actualiza la Matriz en el repo (si Power Automate la sube) o a mano
-# desde la pestaña Actions ("Run workflow").
+# Corre todos los días a las 6:00 am Bogotá (11:00 UTC), cuando cambia algo en sync/,
+# y a mano desde la pestaña Actions ("Run workflow").
 #
-# Secrets que hay que configurar en Settings → Secrets → Actions:
-#   VISITAS_CSV_URL  → (opcional) CSV del Sheet de visitas; si falta, usa el publicado por defecto
-#   MATRIZ_URL       → (opción A) enlace de descarga directa de la Matriz en SharePoint
-#                      Si no está definido, se usa data/matriz_ffie.xlsx del repo (opción B).
-#   MATRIZ_CSV_URL   → (opción C) si la matriz vive en una pestaña de Google Sheets
+# Secrets (Settings → Secrets and variables → Actions):
+#
+#   Opción 1 · Entra ID (recomendada, la que gestiona TI):
+#     AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET
+#     SP_FILE_PATH  → ruta de la Matriz dentro de "Documentos" del sitio SRVINNOVACIN2
+#                     (o SP_FILE_NAME con solo el nombre del archivo, y el job lo busca)
+#     SP_HOSTNAME / SP_SITE_PATH solo si cambia el sitio (default ffie3.sharepoint.com + /sites/SRVINNOVACIN2)
+#
+#   Opción 2 · Enlace anónimo de SharePoint:   MATRIZ_URL
+#   Opción 3 · Pestaña en Google Sheets:       MATRIZ_CSV_URL
+#   Opción 4 · Archivo subido al repo:         data/matriz_ffie.xlsx (sin secretos)
+#
+#   VISITAS_CSV_URL es opcional: si falta, usa el CSV publicado del Sheet (el mismo de los dashboards).
 
 name: Sincronizar avances IE
 
@@ -17,8 +24,9 @@ on:
     - cron: "0 11 * * *"        # 6:00 am America/Bogota
   push:
     paths:
-      - "data/matriz_ffie.xlsx"  # Power Automate subió una nueva Matriz
+      - "data/matriz_ffie.xlsx"
       - "sync/**"
+      - ".github/workflows/sync-avances.yml"
   workflow_dispatch:
 
 permissions:
@@ -41,30 +49,43 @@ jobs:
 
       - run: pip install --quiet openpyxl
 
-      - name: Descargar Matriz desde SharePoint (opción A)
-        if: ${{ secrets.MATRIZ_URL != '' }}
+      - name: "Opción 1 · Descargar Matriz vía Microsoft Graph (Entra ID)"
+        if: ${{ secrets.AZURE_CLIENT_ID != '' }}
+        env:
+          AZURE_TENANT_ID:     ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID:     ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          SP_HOSTNAME:         ${{ secrets.SP_HOSTNAME }}
+          SP_SITE_PATH:        ${{ secrets.SP_SITE_PATH }}
+          SP_FILE_PATH:        ${{ secrets.SP_FILE_PATH }}
+          SP_FILE_NAME:        ${{ secrets.SP_FILE_NAME }}
+        run: python sync/descargar_matriz.py --out /tmp/matriz_ffie.xlsx
+
+      - name: "Opción 2 · Descargar Matriz con enlace anónimo"
+        if: ${{ secrets.AZURE_CLIENT_ID == '' && secrets.MATRIZ_URL != '' }}
         env:
           MATRIZ_URL: ${{ secrets.MATRIZ_URL }}
         run: |
-          curl -fsSL --retry 3 -o /tmp/matriz_ffie.xlsx "${MATRIZ_URL}&download=1"
-          # Si SharePoint devolvió una página de login en vez del archivo, fallar aquí:
-          file /tmp/matriz_ffie.xlsx | grep -qi "Microsoft Excel\|Zip archive" \
+          sep='?'; case "$MATRIZ_URL" in *\?*) sep='&';; esac
+          curl -fsSL --retry 3 -o /tmp/matriz_ffie.xlsx "${MATRIZ_URL}${sep}download=1"
+          head -c 2 /tmp/matriz_ffie.xlsx | grep -q "PK" \
             || { echo "::error::SharePoint no devolvió un .xlsx (¿el enlace pide login?)"; exit 1; }
 
       - name: Elegir fuente de la Matriz
         id: matriz
         env:
-          MATRIZ_URL: ${{ secrets.MATRIZ_URL }}
+          HAY_ENTRA:      ${{ secrets.AZURE_CLIENT_ID }}
+          MATRIZ_URL:     ${{ secrets.MATRIZ_URL }}
           MATRIZ_CSV_URL: ${{ secrets.MATRIZ_CSV_URL }}
         run: |
-          if [ -n "$MATRIZ_URL" ]; then
-            echo "arg=--matriz /tmp/matriz_ffie.xlsx" >> "$GITHUB_OUTPUT"
+          if [ -f /tmp/matriz_ffie.xlsx ]; then
+            echo "arg=--matriz /tmp/matriz_ffie.xlsx" >> "$GITHUB_OUTPUT"; echo "fuente: SharePoint"
           elif [ -n "$MATRIZ_CSV_URL" ]; then
-            echo "arg=" >> "$GITHUB_OUTPUT"
+            echo "arg=" >> "$GITHUB_OUTPUT"; echo "fuente: Google Sheets (MATRIZ_CSV_URL)"
           elif [ -f data/matriz_ffie.xlsx ]; then
-            echo "arg=--matriz data/matriz_ffie.xlsx" >> "$GITHUB_OUTPUT"
+            echo "arg=--matriz data/matriz_ffie.xlsx" >> "$GITHUB_OUTPUT"; echo "fuente: archivo del repo"
           else
-            echo "::error::No hay fuente para la Matriz (MATRIZ_URL, MATRIZ_CSV_URL o data/matriz_ffie.xlsx)"; exit 1
+            echo "::error::No hay fuente para la Matriz. Configura los secretos de Entra ID (AZURE_*), MATRIZ_URL, MATRIZ_CSV_URL, o sube data/matriz_ffie.xlsx"; exit 1
           fi
 
       - name: Cruzar visitas + avance
@@ -83,5 +104,6 @@ jobs:
             echo "Sin cambios en avances.json"
           else
             git commit -m "sync: avances IE $(TZ=America/Bogota date +'%Y-%m-%d %H:%M')"
+            git pull --rebase --quiet origin main || true
             git push
           fi
