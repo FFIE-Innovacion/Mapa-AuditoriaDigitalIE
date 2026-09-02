@@ -28,6 +28,11 @@ on:
       - "sync/**"
       - ".github/workflows/sync-avances.yml"
   workflow_dispatch:
+    inputs:
+      prueba_con_sheet:
+        description: "Prueba: usar la pestaña BASE_PM del Sheet como Matriz (sin SharePoint)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -40,6 +45,10 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Los secretos se exponen al job como env: el contexto `secrets` no se puede usar en `if` de pasos.
+    env:
+      HAY_ENTRA:  ${{ secrets.AZURE_CLIENT_ID }}
+      MATRIZ_URL: ${{ secrets.MATRIZ_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -50,7 +59,7 @@ jobs:
       - run: pip install --quiet openpyxl
 
       - name: "Opción 1 · Descargar Matriz vía Microsoft Graph (Entra ID)"
-        if: ${{ secrets.AZURE_CLIENT_ID != '' }}
+        if: ${{ env.HAY_ENTRA != '' }}
         env:
           AZURE_TENANT_ID:     ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_ID:     ${{ secrets.AZURE_CLIENT_ID }}
@@ -62,9 +71,7 @@ jobs:
         run: python sync/descargar_matriz.py --out /tmp/matriz_ffie.xlsx
 
       - name: "Opción 2 · Descargar Matriz con enlace anónimo"
-        if: ${{ secrets.AZURE_CLIENT_ID == '' && secrets.MATRIZ_URL != '' }}
-        env:
-          MATRIZ_URL: ${{ secrets.MATRIZ_URL }}
+        if: ${{ env.HAY_ENTRA == '' && env.MATRIZ_URL != '' }}
         run: |
           sep='?'; case "$MATRIZ_URL" in *\?*) sep='&';; esac
           curl -fsSL --retry 3 -o /tmp/matriz_ffie.xlsx "${MATRIZ_URL}${sep}download=1"
@@ -74,11 +81,13 @@ jobs:
       - name: Elegir fuente de la Matriz
         id: matriz
         env:
-          HAY_ENTRA:      ${{ secrets.AZURE_CLIENT_ID }}
-          MATRIZ_URL:     ${{ secrets.MATRIZ_URL }}
           MATRIZ_CSV_URL: ${{ secrets.MATRIZ_CSV_URL }}
+          PRUEBA: ${{ inputs.prueba_con_sheet }}
         run: |
-          if [ -f /tmp/matriz_ffie.xlsx ]; then
+          if [ "$PRUEBA" = "true" ]; then
+            echo "arg=" >> "$GITHUB_OUTPUT"; echo "fuente: PRUEBA con BASE_PM del Sheet"
+            echo "MATRIZ_CSV_URL=https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6hh1EfZwAn2ziUXvPleW9dhW16K31BMFATqPgseuDQDqaz0Alk9Q95eAKVRiEk1E24cduIt4izdDe/pub?gid=1008068560&single=true&output=csv" >> "$GITHUB_ENV"
+          elif [ -f /tmp/matriz_ffie.xlsx ]; then
             echo "arg=--matriz /tmp/matriz_ffie.xlsx" >> "$GITHUB_OUTPUT"; echo "fuente: SharePoint"
           elif [ -n "$MATRIZ_CSV_URL" ]; then
             echo "arg=" >> "$GITHUB_OUTPUT"; echo "fuente: Google Sheets (MATRIZ_CSV_URL)"
@@ -92,7 +101,7 @@ jobs:
         env:
           # Si no se define el secreto, usa el CSV publicado del Sheet (el mismo que ya usan los dashboards)
           VISITAS_CSV_URL: ${{ secrets.VISITAS_CSV_URL || 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6hh1EfZwAn2ziUXvPleW9dhW16K31BMFATqPgseuDQDqaz0Alk9Q95eAKVRiEk1E24cduIt4izdDe/pub?gid=1008068560&single=true&output=csv' }}
-          MATRIZ_CSV_URL: ${{ secrets.MATRIZ_CSV_URL }}
+          MATRIZ_CSV_URL: ${{ env.MATRIZ_CSV_URL || secrets.MATRIZ_CSV_URL }}
         run: python sync/sync_avances.py ${{ steps.matriz.outputs.arg }} --out data/avances.json
 
       - name: Publicar si cambió
