@@ -1,7 +1,6 @@
 # .github/workflows/sync-avances.yml
 #
-# Corre todos los días a las 6:00 am Bogotá (11:00 UTC), cuando cambia algo en sync/,
-# y a mano desde la pestaña Actions ("Run workflow").
+# Corre todos los días a las 6:00 am Bogotá (11:00 UTC) y a mano desde la pestaña Actions ("Run workflow").
 #
 # Secrets (Settings → Secrets and variables → Actions):
 #
@@ -24,9 +23,7 @@ on:
     - cron: "0 11 * * *"        # 6:00 am America/Bogota
   push:
     paths:
-      - "data/matriz_ffie.xlsx"
-      - "sync/**"
-      - ".github/workflows/sync-avances.yml"
+      - "data/matriz_ffie.xlsx"   # solo si alguien sube la Matriz al repo (opción 4)
   workflow_dispatch:
     inputs:
       prueba_con_sheet:
