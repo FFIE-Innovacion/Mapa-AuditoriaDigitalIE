@@ -510,6 +510,91 @@ function mieXtra(d){
   };
   return sec(d.v360,'🌐','Video 360°','#6A1B9A')+sec(d.tl,'⏱','Timelapse','#B8860B');
 }
+/* ══ GALERÍA DE FOTOS POR VISITA ══
+   Columna FOTOS: una línea por foto "dd/mm/aaaa|link". Columna CARPETA FOTOS: "dd/mm/aaaa|link carpeta".
+   En el popup se agrupan por fecha: un solo botón por visita que abre el visor (una a una). */
+const MIE_GALREG=[];
+function mieImgUrl(u){
+  try{
+    const o=new URL(u);
+    const id=o.searchParams.get('id');
+    if(id&&/\.(jpe?g|png|webp|gif|heic)$/i.test(id)) return o.origin+encodeURI(decodeURIComponent(id));
+    const m=o.pathname.match(/^\/:[a-z]:\/[rs]\/(.*)$/i);
+    if(m) return o.origin+'/'+m[1];
+    return u;
+  }catch(e){ return u; }
+}
+function mieFotos(d){
+  if(!d.fotos||!d.fotos.length) return '';
+  const g={}; d.fotos.forEach(v=>{(g[v.f||'s.f.']=g[v.f||'s.f.']||[]).push(v.u);});
+  const carp={}; (d.carp||[]).forEach(v=>{carp[v.f||'s.f.']=v.u;});
+  const fechas=Object.keys(g).sort((a,b)=>{const k=x=>x.split('/').reverse().join('');return k(a).localeCompare(k(b));});
+  const rows=fechas.map(f=>{
+    const gi=MIE_GALREG.push({ie:d.ie,f:f,urls:g[f]})-1;
+    return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0;flex-wrap:wrap">'
+      +'<span style="width:8px;height:8px;border-radius:50%;background:#3366CC;flex-shrink:0"></span>'
+      +'<span style="font-size:11px;color:#666666;font-weight:600;width:72px">'+f+'</span>'
+      +'<a href="javascript:void(0)" onclick="mieGal('+gi+',0)" style="font-size:11px;font-weight:700;color:#3366CC;text-decoration:none">📷 Ver '+g[f].length+' foto'+(g[f].length==1?'':'s')+'</a>'
+      +(carp[f]?'<a href="'+carp[f]+'" target="_blank" style="font-size:11px;font-weight:700;color:#666666;text-decoration:none">📁 Carpeta ↗</a>':'')
+      +'</div>';
+  }).join('');
+  return '<div style="margin-top:8px;border-top:1px solid #DDE3F0;padding-top:7px">'
+    +'<div style="font-size:9px;letter-spacing:.8px;color:#666666;font-weight:800;margin-bottom:3px">📷 REGISTRO FOTOGRÁFICO</div>'+rows+'</div>';
+}
+let MIE_GCUR={gi:0,i:0};
+function mieGal(gi,i){
+  const G=MIE_GALREG[gi]; if(!G) return;
+  MIE_GCUR={gi:gi,i:Math.max(0,Math.min(i,G.urls.length-1))};
+  let m=document.getElementById('mie-gal');
+  if(!m){
+    m=document.createElement('div'); m.id='mie-gal';
+    m.style.cssText='position:fixed;inset:0;background:rgba(10,20,50,.9);z-index:9600;display:flex;align-items:center;justify-content:center;padding:3vh 3vw;font-family:Work Sans,sans-serif';
+    m.innerHTML='<div style="background:#1E3370;border-radius:14px;overflow:hidden;width:min(1100px,100%);box-shadow:0 20px 60px rgba(0,0,0,.5)">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;background:#26408A">'
+      +'<span id="mie-gal-title" style="color:#fff;font-weight:700;font-size:13px"></span>'
+      +'<span style="display:flex;gap:12px;align-items:center"><span id="mie-gal-count" style="color:#FDB913;font-weight:800;font-size:13px"></span>'
+      +'<a id="mie-gal-open" href="#" target="_blank" style="color:#fff;font-size:12px;font-weight:700;text-decoration:none;opacity:.85">Abrir original ↗</a>'
+      +'<button onclick="mieGalClose()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1">✕</button></span></div>'
+      +'<div style="position:relative;background:#000;height:min(68vh,620px);display:flex;align-items:center;justify-content:center">'
+      +'<img id="mie-gal-img" alt="" style="max-width:100%;max-height:100%;object-fit:contain;display:block">'
+      +'<div id="mie-gal-fb" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#fff;text-align:center;padding:20px">'
+      +'<div style="font-size:40px">🔒</div><div style="font-size:14px;max-width:440px">No fue posible mostrar la foto aquí. Inicia sesión con tu cuenta corporativa FFIE o ábrela en SharePoint.</div>'
+      +'<a id="mie-gal-fbl" href="#" target="_blank" style="background:#FDB913;color:#1E3370;font-weight:800;border-radius:8px;padding:9px 18px;text-decoration:none;font-size:13px">Abrir en SharePoint ↗</a></div>'
+      +'<button onclick="mieGalMove(-1)" aria-label="Anterior" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,.88);color:#26408A;font-size:22px;font-weight:800;cursor:pointer">‹</button>'
+      +'<button onclick="mieGalMove(1)" aria-label="Siguiente" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,.88);color:#26408A;font-size:22px;font-weight:800;cursor:pointer">›</button>'
+      +'</div>'
+      +'<div id="mie-gal-dots" style="display:flex;gap:6px;justify-content:center;padding:10px;background:#1E3370;flex-wrap:wrap"></div></div>';
+    m.onclick=e=>{if(e.target===m)mieGalClose();};
+    document.body.appendChild(m);
+    document.addEventListener('keydown',e=>{
+      const g=document.getElementById('mie-gal'); if(!g||g.style.display==='none') return;
+      if(e.key==='ArrowRight')mieGalMove(1); else if(e.key==='ArrowLeft')mieGalMove(-1); else if(e.key==='Escape')mieGalClose();
+    });
+  }
+  m.style.display='flex';
+  mieGalShow();
+}
+function mieGalShow(){
+  const G=MIE_GALREG[MIE_GCUR.gi], i=MIE_GCUR.i, u=G.urls[i];
+  document.getElementById('mie-gal-title').textContent='📷 '+G.ie+' · visita '+G.f;
+  document.getElementById('mie-gal-count').textContent=(i+1)+' / '+G.urls.length;
+  document.getElementById('mie-gal-open').href=u;
+  document.getElementById('mie-gal-fbl').href=u;
+  const img=document.getElementById('mie-gal-img'), fb=document.getElementById('mie-gal-fb');
+  fb.style.display='none'; img.style.display='block';
+  img.onerror=()=>{img.style.display='none';fb.style.display='flex';};
+  img.src=mieImgUrl(u);
+  document.getElementById('mie-gal-dots').innerHTML=G.urls.map((x,k)=>
+    '<span onclick="MIE_GCUR.i='+k+';mieGalShow()" style="width:'+(k===i?'22':'9')+'px;height:9px;border-radius:5px;cursor:pointer;background:'+(k===i?'#FDB913':'rgba(255,255,255,.35)')+';transition:width .2s"></span>').join('');
+}
+function mieGalMove(dir){
+  const G=MIE_GALREG[MIE_GCUR.gi]; if(!G) return;
+  MIE_GCUR.i=(MIE_GCUR.i+dir+G.urls.length)%G.urls.length; mieGalShow();
+}
+function mieGalClose(){
+  const m=document.getElementById('mie-gal'); if(m){m.style.display='none';document.getElementById('mie-gal-img').src='';}
+}
+
 function mieShare(slug){
   const url=location.origin+location.pathname+'#ie='+slug;
   const done=()=>{const b=document.getElementById('mie-share-'+slug);if(b){b.textContent='✓ Copiado';setTimeout(()=>{b.textContent='🔗 Copiar link';},1800);}};
@@ -592,7 +677,7 @@ function mieLoad(){
      const col=n=>hdr.findIndex(h=>h.includes(n));
      const iDep=col('departamento'),iMun=col('municipio'),iIE=col('institucion'),iSede=col('sede'),
            iVis=col('visitas'),iEst=col('estado'),iLat=col('lat'),iLon=col('lon');
-     const iVid=hdr.findIndex(h=>h.includes('video')&&!h.includes('360')&&!h.includes('timelapse'));const iV360=hdr.findIndex(h=>h.includes('360'));const iTl=hdr.findIndex(h=>h.includes('timelapse'));
+     const iVid=hdr.findIndex(h=>h.includes('video')&&!h.includes('360')&&!h.includes('timelapse'));const iV360=hdr.findIndex(h=>h.includes('360'));const iTl=hdr.findIndex(h=>h.includes('timelapse'));const iFot=hdr.findIndex(h=>h.includes('foto')&&!h.includes('carpeta'));const iCarp=hdr.findIndex(h=>h.includes('carpeta'));
      const data=[],missing=new Set();
      for(let r=1;r<rows.length;r++){const R=rows[r];
        if(!R||!R[iIE]||!String(R[iIE]).trim())continue;
@@ -607,7 +692,7 @@ function mieLoad(){
          if(isNaN(lat)||lat<-5||lat>14||lon<-80||lon>-66) lat=null;
        }
        if(lat===null||isNaN(lat)){missing.add(R[iMun]);continue;}
-       data.push({dep:R[iDep],mun:R[iMun],ie:R[iIE],sede:R[iSede]||'',vis:vis,est:String(R[iEst]||'').trim(),lat:lat,lon:lon,cat:mieCat(R[iEst]),vids:mieVids(String((iVid>=0?R[iVid]:'')||'')),v360:mieVids(String((iV360>=0?R[iV360]:'')||'')),tl:mieVids(String((iTl>=0?R[iTl]:'')||''))});
+       data.push({dep:R[iDep],mun:R[iMun],ie:R[iIE],sede:R[iSede]||'',vis:vis,est:String(R[iEst]||'').trim(),lat:lat,lon:lon,cat:mieCat(R[iEst]),vids:mieVids(String((iVid>=0?R[iVid]:'')||'')),v360:mieVids(String((iV360>=0?R[iV360]:'')||'')),tl:mieVids(String((iTl>=0?R[iTl]:'')||'')),fotos:mieVids(String((iFot>=0?R[iFot]:'')||'')),carp:mieVids(String((iCarp>=0?R[iCarp]:'')||''))});
      }
      const g={}; data.forEach((d,i)=>{const k=d.lat.toFixed(4)+','+d.lon.toFixed(4);(g[k]=g[k]||[]).push(i);});
      Object.values(g).forEach(ix=>{ if(ix.length<2)return; const R=0.055;
@@ -720,7 +805,7 @@ function mieRender(DATA){
       +(stale?' <span style="background:#FDEAED;color:#D72229;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:800">⚠ '+dias+' días sin vuelo</span>':'')
       +'</div>'
       +obraHtml
-      +mieTimeline(d)+mieXtra(d)+'</div>',{maxWidth:320});
+      +mieTimeline(d)+mieXtra(d)+mieFotos(d)+'</div>',{maxWidth:320});
     MIE_MARKERS[slug]=m;
     mieGroups[d.cat].addLayer(m);
   });
