@@ -728,8 +728,8 @@ function mieVisDraw(){
   if(MVS.tab==='fotos'){
     body.innerHTML='<img id="mvs-img" alt="" style="max-width:100%;max-height:100%;object-fit:contain;display:block">'+arrows;
     const img=document.getElementById('mvs-img');
-    img.onerror=()=>{img.remove();body.insertAdjacentHTML('afterbegin',mieVisFallback(u,'No fue posible mostrar la foto aquí. Inicia sesión con tu cuenta corporativa FFIE o ábrela en SharePoint.'));};
-    img.src=(typeof mieImgUrl==='function')?mieImgUrl(u):u;
+    mieSetImg(img,u,()=>{img.remove();body.insertAdjacentHTML('afterbegin',mieVisFallback(u,'No fue posible mostrar la foto aquí. Inicia sesión con tu cuenta corporativa FFIE o ábrela en SharePoint.'));});
+    if(L.length>1){ miePreload(L[(MVS.k+1)%L.length]); miePreload(L[(MVS.k-1+L.length)%L.length]); }
     strip.innerHTML='<span style="color:#FDB913;font-weight:800;font-size:12px;margin-right:6px">'+(MVS.k+1)+' / '+L.length+'</span>'
       +(L.length<=24?L.map((x,k)=>'<span onclick="mieVisGo('+k+')" style="width:'+(k===MVS.k?'20':'8')+'px;height:8px;border-radius:5px;cursor:pointer;background:'+(k===MVS.k?'#FDB913':'rgba(255,255,255,.35)')+'"></span>').join(''):'');
   }else{
@@ -752,9 +752,7 @@ function mieADPares(G){
   const A=con[0], B=con[con.length-1];
   const fn=u=>{try{return decodeURIComponent(u.split('/').pop()).toUpperCase();}catch(e){return '';}};
   const refA=A.fotos.find(u=>fn(u).startsWith('REF_')), refB=B.fotos.find(u=>fn(u).startsWith('REF_'));
-  const n=Math.min(A.fotos.length,B.fotos.length), pares=[];
-  if(refA&&refB) pares.push([refA,refB,true]);
-  for(let k=0;k<n;k++) pares.push([A.fotos[k],B.fotos[k],false]);
+  const pares=[(refA&&refB)?[refA,refB,true]:[A.fotos[0],B.fotos[0],false]];
   return {A:A,B:B,pares:pares};
 }
 function mieADBtn(gi){
@@ -787,7 +785,7 @@ function mieAD(gi){
       +'<div id="mad-fb" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#fff;text-align:center;padding:20px;background:#000">'
       +'<div style="font-size:40px">🔒</div><div style="font-size:14px;max-width:440px">No fue posible mostrar las fotos aquí. Inicia sesión con tu cuenta corporativa FFIE.</div></div>'
       +'</div>'
-      +'<div style="display:flex;justify-content:center;align-items:center;gap:12px;padding:10px 12px;background:#1E3370">'
+      +'<div id="mad-nav" style="display:flex;justify-content:center;align-items:center;gap:12px;padding:10px 12px;background:#1E3370">'
       +'<button onclick="mieADPar(-1)" aria-label="Pareja anterior" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;width:30px;height:26px;cursor:pointer;font-weight:800">‹</button>'
       +'<span id="mad-cnt" style="color:#fff;font-size:12px;font-weight:700;min-width:190px;text-align:center"></span>'
       +'<button onclick="mieADPar(1)" aria-label="Pareja siguiente" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;width:30px;height:26px;cursor:pointer;font-weight:800">›</button></div></div>';
@@ -816,8 +814,8 @@ function mieADDraw(){
   document.getElementById('mad-cnt').textContent=(p[2]?'Foto de referencia':'Pareja '+(MAD.k+(P.pares[0][2]?0:1))+' de '+(P.pares.length-(P.pares[0][2]?1:0)));
   const fb=document.getElementById('mad-fb'); fb.style.display='none';
   const a=document.getElementById('mad-a'), b=document.getElementById('mad-b');
-  a.onerror=b.onerror=()=>{fb.style.display='flex';};
-  a.src=src(p[0]); b.src=src(p[1]); mieADPos();
+  mieSetImg(a,p[0],()=>{fb.style.display='flex';}); mieSetImg(b,p[1],()=>{fb.style.display='flex';}); mieADPos();
+  const nav=document.getElementById('mad-nav'); if(nav) nav.style.display=P.pares.length>1?'flex':'none';
 }
 function mieADClose(){ const m=document.getElementById('mie-ad'); if(m) m.style.display='none'; }
 
@@ -839,6 +837,23 @@ function usoLog(evento,datos){
 const USO_VISTO={};
 function usoUna(clave,evento,datos){ if(USO_VISTO[clave]) return; USO_VISTO[clave]=1; usoLog(evento,datos); }
 
+/* ══ Fotos livianas: vista previa de SharePoint (~1024 px) en vez del original de 5-10 MB ══ */
+function mieThumb(u){
+  try{
+    const full=(typeof mieImgUrl==='function')?mieImgUrl(u):u;
+    const o=new URL(full); const m=o.pathname.match(/^\/sites\/([^/]+)\//);
+    if(!/sharepoint\.com$/i.test(o.hostname)||!m||!/\.(jpe?g|png)$/i.test(o.pathname)) return full;
+    return o.origin+'/sites/'+m[1]+'/_layouts/15/getpreview.ashx?path='+encodeURIComponent(o.origin+decodeURI(o.pathname))+'&resolution=3';
+  }catch(e){ return u; }
+}
+/* carga la vista previa; si falla, intenta el original; si también falla, llama onFail */
+function mieSetImg(img,u,onFail){
+  const full=(typeof mieImgUrl==='function')?mieImgUrl(u):u, th=mieThumb(u);
+  let paso=0;
+  img.onerror=()=>{ if(paso===0&&th!==full){ paso=1; img.src=full; } else { img.onerror=null; if(onFail) onFail(); } };
+  img.src=th;
+}
+function miePreload(u){ try{ const i=new Image(); i.src=mieThumb(u); }catch(e){} }
 function mieShare(slug){
   const url=location.origin+location.pathname+'#ie='+slug;
   const done=()=>{const b=document.getElementById('mie-share-'+slug);if(b){b.textContent='✓ Copiado';setTimeout(()=>{b.textContent='🔗 Copiar link';},1800);}};
