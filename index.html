@@ -444,7 +444,7 @@ function mieVids(s){
 function mieFDate(f){ const p=(f||'').split('/'); return p.length===3?new Date(+p[2],+p[1]-1,+p[0]):null; }
 function mieSlug(d){ return mieNk(d.ie+'-'+(d.sede||'')).replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
 function mieDias(d){
-  const fs=d.vids.map(v=>mieFDate(v.f)).filter(x=>x);
+  const fs=(d.visitas&&d.visitas.length?d.visitas.map(v=>mieFDate(v.f)):d.vids.map(v=>mieFDate(v.f))).filter(x=>x);
   if(!fs.length) return null;
   const last=new Date(Math.max.apply(null,fs));
   return Math.floor((Date.now()-last)/(864e5));
@@ -595,6 +595,154 @@ function mieGalClose(){
   const m=document.getElementById('mie-gal'); if(m){m.style.display='none';document.getElementById('mie-gal-img').src='';}
 }
 
+/* ══ MEDIOS POR VISITA (SharePoint INFORMES IE → data/medios.json) ══
+   Si medios.json no está disponible, todo funciona con los links del Sheet (comportamiento anterior). */
+const MEDIOS_URLS=['data/medios.json','https://raw.githubusercontent.com/FFIE-Innovacion/Mapa-AuditoriaDigitalIE/main/data/medios.json'];
+let MED={map:{},base:'',meta:null};
+const MIE_VISREG=[];
+function medK(s){ return mieNk(s).replace(/[^a-z0-9]+/g,' ').trim(); }
+async function loadMedios(){
+  for(const u of MEDIOS_URLS){
+    try{
+      const r=await fetch(u+(u.includes('?')?'&':'?')+'_='+Date.now(),{cache:'no-store'});
+      if(!r.ok) continue;
+      const j=await r.json(); if(!j||!j.ies) continue;
+      const map={}; Object.values(j.ies).forEach(e=>{ map[medK(e.ie)+'|'+medK(e.sede)]=e; });
+      MED={map:map,base:j.base||'',meta:{generado:j.generado,url:u}};
+      return true;
+    }catch(e){ console.warn('medios.json no disponible en',u,e.message); }
+  }
+  MED={map:{},base:'',meta:null}; return false;
+}
+function medUrl(e,rel){ return encodeURI(MED.base+e.carpeta+'/'+rel).replace(/#/g,'%23'); }
+function medCarpeta(e,rel){
+  const m=MED.base.match(/^(https:\/\/[^/]+)\/(sites\/[^/]+)\/(.*)$/); if(!m) return '';
+  const dir=('/'+m[2]+'/'+m[3]+e.carpeta+'/'+rel).replace(/\/[^/]+$/,'');
+  return m[1]+'/'+m[2]+'/Shared%20Documents/Forms/AllItems.aspx?id='+encodeURIComponent(dir);
+}
+function mieIso(f){ const p=(f||'').split('/'); return p.length===3?p[2]+'-'+p[1]+'-'+p[0]:''; }
+function mieFmt(iso){ const p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+/* Une Sheet + SharePoint en una lista de visitas por fecha */
+function mieBuildVisitas(d){
+  const V={};
+  const get=iso=>(V[iso]=V[iso]||{iso:iso,f:mieFmt(iso),fotos:[],videos:[],v360:[],tl:[],carp:''});
+  const add=(arr,key)=>(arr||[]).forEach(x=>{const iso=mieIso(x.f); if(iso) get(iso)[key].push(x.u);});
+  add(d.vids,'videos'); add(d.v360,'v360'); add(d.tl,'tl'); add(d.fotos,'fotos');
+  (d.carp||[]).forEach(x=>{const iso=mieIso(x.f); if(iso) get(iso).carp=x.u;});
+  const e=MED.map[medK(d.ie)+'|'+medK(d.sede)];
+  if(e){
+    Object.keys(e.visitas).forEach(iso=>{
+      const x=e.visitas[iso], v=get(iso);
+      if(x.f&&x.f.length){ v.fotos=x.f.map(r=>medUrl(e,r)); v.carp=medCarpeta(e,x.f[0]); }
+      if(x.v&&x.v.length){ v.videos=x.v.map(r=>medUrl(e,r)); }
+    });
+  }
+  return Object.values(V).sort((a,b)=>a.iso.localeCompare(b.iso));
+}
+function mieVisitas(d){
+  const vs=d.visitas||[]; if(!vs.length) return '';
+  const gi=MIE_VISREG.push({ie:d.ie,vs:vs})-1;
+  const chip=(n,ic,tab,vi)=>n?'<a href="javascript:void(0)" onclick="event.stopPropagation();mieVis('+gi+','+vi+',\''+tab+'\')" title="'+tab+'" style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:#26408A;background:#EEF3FD;border-radius:10px;padding:1px 7px;text-decoration:none">'+ic+(n>1||tab==='fotos'||tab==='videos'?' '+n:'')+'</a>':'';
+  const last=vs.length-1;
+  const rows=vs.map((v,i)=>({v,i})).reverse().map(({v,i})=>{
+    const isLast=i===last&&vs.length>1;
+    return '<div onclick="mieVis('+gi+','+i+',\'auto\')" style="display:flex;align-items:center;gap:7px;padding:5px 6px;margin:0 -6px;border-radius:7px;cursor:pointer" onmouseover="this.style.background=\'#F4F6FB\'" onmouseout="this.style.background=\'\'">'
+      +'<span style="width:8px;height:8px;border-radius:50%;background:'+(isLast?'#00843D':'#3366CC')+';flex-shrink:0"></span>'
+      +'<span style="font-size:11px;color:'+(isLast?'#1E3370':'#666666')+';font-weight:'+(isLast?'800':'600')+';width:68px;flex-shrink:0">'+v.f+'</span>'
+      +'<span style="display:flex;gap:4px;flex-wrap:wrap;flex:1">'+chip(v.fotos.length,'📷','fotos',i)+chip(v.videos.length,'🎥','videos',i)+chip(v.v360.length,'🌐','v360',i)+chip(v.tl.length,'⏱','tl',i)+'</span>'
+      +(isLast?'<span style="font-size:9px;background:#E6F4ED;color:#00843D;font-weight:800;padding:1px 6px;border-radius:10px">ÚLTIMA</span>':'')
+      +'<span style="color:#3366CC;font-weight:800;font-size:13px">›</span></div>';
+  }).join('');
+  return '<div style="margin-top:8px;border-top:1px solid #DDE3F0;padding-top:7px">'
+    +'<div style="font-size:9px;letter-spacing:.8px;color:#666666;font-weight:800;margin-bottom:3px">VISITAS · REGISTRO DE CAMPO ('+vs.length+')</div>'
+    +'<div style="max-height:190px;overflow-y:auto">'+rows+'</div></div>';
+}
+/* ── Visor de visita ── */
+let MVS={gi:0,vi:0,tab:'fotos',k:0};
+const MVS_TABS=[['fotos','📷 Fotos'],['videos','🎥 Videos'],['v360','🌐 360°'],['tl','⏱ Timelapse']];
+function mieVis(gi,vi,tab){
+  const G=MIE_VISREG[gi]; if(!G) return;
+  const v=G.vs[vi];
+  if(tab==='auto') tab=(MVS_TABS.find(t=>v[t[0]].length)||['fotos'])[0];
+  MVS={gi:gi,vi:vi,tab:tab,k:0};
+  let m=document.getElementById('mie-vis');
+  if(!m){
+    m=document.createElement('div'); m.id='mie-vis';
+    m.style.cssText='position:fixed;inset:0;background:rgba(10,20,50,.9);z-index:9600;display:flex;align-items:center;justify-content:center;padding:3vh 3vw;font-family:Work Sans,sans-serif';
+    m.innerHTML='<div style="background:#1E3370;border-radius:14px;overflow:hidden;width:min(1100px,100%);box-shadow:0 20px 60px rgba(0,0,0,.5)">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;background:#26408A">'
+      +'<div style="min-width:0"><div id="mvs-ie" style="color:#fff;font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-top:3px"><button onclick="mieVisNav(-1)" id="mvs-prev" aria-label="Visita anterior" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;width:24px;height:22px;cursor:pointer;font-weight:800">‹</button>'
+      +'<span id="mvs-fecha" style="color:#FDB913;font-weight:800;font-size:12px"></span>'
+      +'<button onclick="mieVisNav(1)" id="mvs-next" aria-label="Visita siguiente" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;width:24px;height:22px;cursor:pointer;font-weight:800">›</button></div></div>'
+      +'<button onclick="mieVisClose()" aria-label="Cerrar" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1">✕</button></div>'
+      +'<div id="mvs-tabs" style="display:flex;gap:4px;padding:0 12px;background:#26408A;border-top:1px solid rgba(255,255,255,.12)"></div>'
+      +'<div id="mvs-body" style="position:relative;background:#000;height:min(62vh,600px);display:flex;align-items:center;justify-content:center"></div>'
+      +'<div id="mvs-strip" style="display:flex;gap:6px;justify-content:center;align-items:center;padding:9px 12px;background:#1E3370;flex-wrap:wrap;min-height:34px"></div>'
+      +'<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 16px;background:#26408A;font-size:12px">'
+      +'<a id="mvs-carp" href="#" target="_blank" style="color:#fff;font-weight:700;text-decoration:none">📁 Carpeta de la visita ↗</a>'
+      +'<a id="mvs-open" href="#" target="_blank" style="color:#FDB913;font-weight:700;text-decoration:none">Abrir original ↗</a></div></div>';
+    m.onclick=e=>{if(e.target===m)mieVisClose();};
+    document.body.appendChild(m);
+    document.addEventListener('keydown',e=>{
+      const g=document.getElementById('mie-vis'); if(!g||g.style.display==='none') return;
+      if(e.key==='Escape') mieVisClose();
+      else if(MVS.tab==='fotos'&&e.key==='ArrowRight') mieVisItem(1);
+      else if(MVS.tab==='fotos'&&e.key==='ArrowLeft') mieVisItem(-1);
+    });
+  }
+  m.style.display='flex';
+  mieVisDraw();
+}
+function mieVisNav(dir){
+  const G=MIE_VISREG[MVS.gi]; const vi=MVS.vi+dir; if(vi<0||vi>=G.vs.length) return;
+  const v=G.vs[vi]; const tab=v[MVS.tab].length?MVS.tab:(MVS_TABS.find(t=>v[t[0]].length)||['fotos'])[0];
+  MVS={gi:MVS.gi,vi:vi,tab:tab,k:0}; mieVisDraw();
+}
+function mieVisTab(t){ MVS.tab=t; MVS.k=0; mieVisDraw(); }
+function mieVisItem(dir){ const L=MIE_VISREG[MVS.gi].vs[MVS.vi][MVS.tab]; if(!L.length) return; MVS.k=(MVS.k+dir+L.length)%L.length; mieVisDraw(); }
+function mieVisGo(k){ MVS.k=k; mieVisDraw(); }
+function mieVisClose(){ const m=document.getElementById('mie-vis'); if(m){m.style.display='none';document.getElementById('mvs-body').innerHTML='';} }
+function mieVisFallback(u,txt){
+  return '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#fff;text-align:center;padding:20px">'
+    +'<div style="font-size:40px">🔒</div><div style="font-size:14px;max-width:440px">'+txt+'</div>'
+    +'<a href="'+u+'" target="_blank" style="background:#FDB913;color:#1E3370;font-weight:800;border-radius:8px;padding:9px 18px;text-decoration:none;font-size:13px">Abrir en SharePoint ↗</a></div>';
+}
+function mieVisDraw(){
+  const G=MIE_VISREG[MVS.gi], v=G.vs[MVS.vi], L=v[MVS.tab], u=L[MVS.k]||'';
+  document.getElementById('mvs-ie').textContent='📍 '+G.ie;
+  document.getElementById('mvs-fecha').textContent='Visita '+v.f+'  ·  '+(MVS.vi+1)+' de '+G.vs.length;
+  document.getElementById('mvs-prev').style.visibility=MVS.vi>0?'visible':'hidden';
+  document.getElementById('mvs-next').style.visibility=MVS.vi<G.vs.length-1?'visible':'hidden';
+  document.getElementById('mvs-tabs').innerHTML=MVS_TABS.filter(t=>v[t[0]].length).map(t=>
+    '<button onclick="mieVisTab(\''+t[0]+'\')" style="background:none;border:none;border-bottom:3px solid '+(t[0]===MVS.tab?'#FDB913':'transparent')+';color:'+(t[0]===MVS.tab?'#fff':'rgba(255,255,255,.65)')+';font-family:Work Sans,sans-serif;font-size:12px;font-weight:700;padding:9px 10px;cursor:pointer">'+t[1]+' <span style="opacity:.75">'+v[t[0]].length+'</span></button>').join('');
+  const carp=document.getElementById('mvs-carp'); carp.style.visibility=v.carp?'visible':'hidden'; carp.href=v.carp||'#';
+  const op=document.getElementById('mvs-open'); op.style.visibility=u?'visible':'hidden'; op.href=u||'#';
+  const body=document.getElementById('mvs-body'), strip=document.getElementById('mvs-strip');
+  const st='position:absolute;inset:0;width:100%;height:100%;border:none;background:#000';
+  if(!u){ body.innerHTML='<div style="color:rgba(255,255,255,.7);font-size:14px">Sin registro para esta visita</div>'; strip.innerHTML=''; return; }
+  const arrows=L.length>1?'<button onclick="mieVisItem(-1)" aria-label="Anterior" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,.88);color:#26408A;font-size:22px;font-weight:800;cursor:pointer;z-index:2">‹</button>'
+    +'<button onclick="mieVisItem(1)" aria-label="Siguiente" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,.88);color:#26408A;font-size:22px;font-weight:800;cursor:pointer;z-index:2">›</button>':'';
+  if(MVS.tab==='fotos'){
+    body.innerHTML='<img id="mvs-img" alt="" style="max-width:100%;max-height:100%;object-fit:contain;display:block">'+arrows;
+    const img=document.getElementById('mvs-img');
+    img.onerror=()=>{img.remove();body.insertAdjacentHTML('afterbegin',mieVisFallback(u,'No fue posible mostrar la foto aquí. Inicia sesión con tu cuenta corporativa FFIE o ábrela en SharePoint.'));};
+    img.src=(typeof mieImgUrl==='function')?mieImgUrl(u):u;
+    strip.innerHTML='<span style="color:#FDB913;font-weight:800;font-size:12px;margin-right:6px">'+(MVS.k+1)+' / '+L.length+'</span>'
+      +(L.length<=24?L.map((x,k)=>'<span onclick="mieVisGo('+k+')" style="width:'+(k===MVS.k?'20':'8')+'px;height:8px;border-radius:5px;cursor:pointer;background:'+(k===MVS.k?'#FDB913':'rgba(255,255,255,.35)')+'"></span>').join(''):'');
+  }else{
+    const yt=u.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+    if(yt){ body.innerHTML='<iframe src="https://www.youtube.com/embed/'+yt[1]+'?rel=0&modestbranding=1" allowfullscreen allow="autoplay; fullscreen; gyroscope; accelerometer; encrypted-media" style="'+st+'"></iframe>'; }
+    else{
+      let src=u; if(/stream\.aspx/i.test(u)&&typeof mieDirectUrl==='function') src=mieDirectUrl(u)||u;
+      body.innerHTML='<video controls playsinline style="'+st+'" src="'+src.replace(/"/g,'&quot;')+'"></video>';
+      body.querySelector('video').onerror=()=>{body.innerHTML=mieVisFallback(u,'No fue posible reproducir el video aquí. Inicia sesión con tu cuenta corporativa FFIE o ábrelo en SharePoint.');};
+    }
+    const lbl=MVS.tab==='videos'?'Video':MVS.tab==='v360'?'360°':'Timelapse';
+    strip.innerHTML=L.length>1?L.map((x,k)=>'<button onclick="mieVisGo('+k+')" style="font-family:Work Sans,sans-serif;font-size:11px;font-weight:700;border:none;border-radius:14px;padding:4px 11px;cursor:pointer;background:'+(k===MVS.k?'#FDB913':'rgba(255,255,255,.14)')+';color:'+(k===MVS.k?'#1E3370':'#fff')+'">'+lbl+' '+(k+1)+'</button>').join(''):'';
+  }
+}
+
 function mieShare(slug){
   const url=location.origin+location.pathname+'#ie='+slug;
   const done=()=>{const b=document.getElementById('mie-share-'+slug);if(b){b.textContent='✓ Copiado';setTimeout(()=>{b.textContent='🔗 Copiar link';},1800);}};
@@ -670,9 +818,8 @@ function initMapaIE(){
   mieLoad();
 }
 function mieLoad(){
-  fetch(MIE_CSV+'&t='+Date.now())
-   .then(r=>{if(!r.ok)throw new Error(r.status);return r.text();})
-   .then(txt=>{
+  Promise.all([fetch(MIE_CSV+'&t='+Date.now()).then(r=>{if(!r.ok)throw new Error(r.status);return r.text();}),loadMedios().catch(()=>false)])
+   .then(([txt])=>{
      const rows=mieParseCSV(txt),hdr=rows[0].map(mieNk);
      const col=n=>hdr.findIndex(h=>h.includes(n));
      const iDep=col('departamento'),iMun=col('municipio'),iIE=col('institucion'),iSede=col('sede'),
@@ -697,10 +844,11 @@ function mieLoad(){
      const g={}; data.forEach((d,i)=>{const k=d.lat.toFixed(4)+','+d.lon.toFixed(4);(g[k]=g[k]||[]).push(i);});
      Object.values(g).forEach(ix=>{ if(ix.length<2)return; const R=0.055;
        ix.forEach((idx,j)=>{const a=2*Math.PI*j/ix.length; data[idx].lat+=R*Math.cos(a); data[idx].lon+=R*Math.sin(a)*1.02;});});
+     data.forEach(d=>{d.visitas=mieBuildVisitas(d);});
      MIE_DATA=data;
      mieMeses();
      mieApply();
-     document.getElementById('mie-sync').textContent='Conectado a Google Sheets · actualizado '+new Date().toLocaleString('es-CO')+(AV.meta?' · Avance: Matriz FFIE al '+avCorteTxt():' · Avance: Sheet (Matriz no disponible)');
+     document.getElementById('mie-sync').textContent='Conectado a Google Sheets · actualizado '+new Date().toLocaleString('es-CO')+(MED.meta?' · Registro de campo al '+MED.meta.generado:'')+(AV.meta?' · Avance: Matriz FFIE al '+avCorteTxt():' · Avance: Sheet (Matriz no disponible)');
      if(missing.size){const w=document.getElementById('mie-warn');w.style.display='block';
        w.innerHTML='<b>Municipios sin coordenadas:</b> '+[...missing].join(', ')+'. Agrega columnas LAT y LON en el Sheets.';}
      mieHash();
@@ -710,7 +858,7 @@ function mieLoad(){
 function mieMeses(){
   const sel=document.getElementById('mie-mes'); if(!sel) return;
   const set=new Set();
-  MIE_DATA.forEach(d=>d.vids.forEach(v=>{const p=(v.f||'').split('/'); if(p.length===3) set.add(p[2]+'-'+p[1]);}));
+  MIE_DATA.forEach(d=>(d.visitas||[]).forEach(v=>set.add(v.iso.slice(0,7))));
   const meses=[...set].sort();
   const NM={'01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio','07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre'};
   sel.innerHTML='<option value="">📅 Todos los meses</option>'+meses.map(m=>{const[y,mm]=m.split('-');return '<option value="'+m+'">'+NM[mm]+' '+y+'</option>';}).join('');
@@ -725,7 +873,7 @@ function mieToggleAlert(){
 function mieApply(){
   const mes=document.getElementById('mie-mes')?document.getElementById('mie-mes').value:'';
   let data=MIE_DATA;
-  if(mes) data=data.filter(d=>d.vids.some(v=>{const p=(v.f||'').split('/');return p.length===3&&(p[2]+'-'+p[1])===mes;}));
+  if(mes) data=data.filter(d=>(d.visitas||[]).some(v=>v.iso.slice(0,7)===mes));
   const nAlert=MIE_DATA.filter(mieStale).length;
   const el=document.getElementById('mie-alert-n'); if(el) el.textContent=nAlert;
   if(MIE_ALERTONLY) data=data.filter(mieStale);
@@ -805,7 +953,7 @@ function mieRender(DATA){
       +(stale?' <span style="background:#FDEAED;color:#D72229;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:800">⚠ '+dias+' días sin vuelo</span>':'')
       +'</div>'
       +obraHtml
-      +mieTimeline(d)+mieXtra(d)+mieFotos(d)+'</div>',{maxWidth:320});
+      +mieVisitas(d)+'</div>',{maxWidth:320});
     MIE_MARKERS[slug]=m;
     mieGroups[d.cat].addLayer(m);
   });
