@@ -654,7 +654,7 @@ function mieVisitas(d){
       +'<span style="color:#3366CC;font-weight:800;font-size:13px">›</span></div>';
   }).join('');
   return '<div style="margin-top:8px;border-top:1px solid #DDE3F0;padding-top:7px">'
-    +'<div style="font-size:9px;letter-spacing:.8px;color:#666666;font-weight:800;margin-bottom:3px">VISITAS · REGISTRO DE CAMPO ('+vs.length+')</div>'
+    +mieADBtn(gi)+'<div style="font-size:9px;letter-spacing:.8px;color:#666666;font-weight:800;margin:8px 0 3px">VISITAS · REGISTRO DE CAMPO ('+vs.length+')</div>'
     +'<div style="max-height:190px;overflow-y:auto">'+rows+'</div></div>';
 }
 /* ── Visor de visita ── */
@@ -665,6 +665,7 @@ function mieVis(gi,vi,tab){
   const v=G.vs[vi];
   if(tab==='auto') tab=(MVS_TABS.find(t=>v[t[0]].length)||['fotos'])[0];
   MVS={gi:gi,vi:vi,tab:tab,k:0};
+  usoLog('abrir_visita',{ie:G.ie,visita:v.f,detalle:tab});
   let m=document.getElementById('mie-vis');
   if(!m){
     m=document.createElement('div'); m.id='mie-vis';
@@ -680,7 +681,7 @@ function mieVis(gi,vi,tab){
       +'<div id="mvs-body" style="position:relative;background:#000;height:min(62vh,600px);display:flex;align-items:center;justify-content:center"></div>'
       +'<div id="mvs-strip" style="display:flex;gap:6px;justify-content:center;align-items:center;padding:9px 12px;background:#1E3370;flex-wrap:wrap;min-height:34px"></div>'
       +'<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 16px;background:#26408A;font-size:12px">'
-      +'<a id="mvs-carp" href="#" target="_blank" style="color:#fff;font-weight:700;text-decoration:none">📁 Carpeta de la visita ↗</a>'
+      +'<a id="mvs-carp" href="#" target="_blank" onclick="usoLog(\'abrir_carpeta\',{ie:MIE_VISREG[MVS.gi].ie,visita:MIE_VISREG[MVS.gi].vs[MVS.vi].f})" style="color:#fff;font-weight:700;text-decoration:none">📁 Carpeta de la visita ↗</a>'
       +'<a id="mvs-open" href="#" target="_blank" style="color:#FDB913;font-weight:700;text-decoration:none">Abrir original ↗</a></div></div>';
     m.onclick=e=>{if(e.target===m)mieVisClose();};
     document.body.appendChild(m);
@@ -710,6 +711,7 @@ function mieVisFallback(u,txt){
 }
 function mieVisDraw(){
   const G=MIE_VISREG[MVS.gi], v=G.vs[MVS.vi], L=v[MVS.tab], u=L[MVS.k]||'';
+  if(L.length) usoUna(G.ie+'|'+v.f+'|'+MVS.tab,{fotos:'ver_fotos',videos:'ver_videos',v360:'ver_360',tl:'ver_timelapse'}[MVS.tab],{ie:G.ie,visita:v.f,detalle:L.length+' archivo(s)'});
   document.getElementById('mvs-ie').textContent='📍 '+G.ie;
   document.getElementById('mvs-fecha').textContent='Visita '+v.f+'  ·  '+(MVS.vi+1)+' de '+G.vs.length;
   document.getElementById('mvs-prev').style.visibility=MVS.vi>0?'visible':'hidden';
@@ -742,6 +744,100 @@ function mieVisDraw(){
     strip.innerHTML=L.length>1?L.map((x,k)=>'<button onclick="mieVisGo('+k+')" style="font-family:Work Sans,sans-serif;font-size:11px;font-weight:700;border:none;border-radius:14px;padding:4px 11px;cursor:pointer;background:'+(k===MVS.k?'#FDB913':'rgba(255,255,255,.14)')+';color:'+(k===MVS.k?'#1E3370':'#fff')+'">'+lbl+' '+(k+1)+'</button>').join(''):'';
   }
 }
+
+/* ══ ANTES / DESPUÉS: primera vs última visita con fotos ══
+   Si en ambas visitas hay una foto cuyo nombre empieza por REF_, se usa esa pareja primero. */
+function mieADPares(G){
+  const con=G.vs.filter(v=>v.fotos&&v.fotos.length); if(con.length<2) return null;
+  const A=con[0], B=con[con.length-1];
+  const fn=u=>{try{return decodeURIComponent(u.split('/').pop()).toUpperCase();}catch(e){return '';}};
+  const refA=A.fotos.find(u=>fn(u).startsWith('REF_')), refB=B.fotos.find(u=>fn(u).startsWith('REF_'));
+  const n=Math.min(A.fotos.length,B.fotos.length), pares=[];
+  if(refA&&refB) pares.push([refA,refB,true]);
+  for(let k=0;k<n;k++) pares.push([A.fotos[k],B.fotos[k],false]);
+  return {A:A,B:B,pares:pares};
+}
+function mieADBtn(gi){
+  const P=mieADPares(MIE_VISREG[gi]); if(!P) return '';
+  return '<a href="javascript:void(0)" onclick="mieAD('+gi+')" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;background:#26408A;color:#fff;border-radius:8px;padding:7px 11px;text-decoration:none">'
+    +'<span style="font-size:12px;font-weight:800">🔄 Antes / Después</span>'
+    +'<span style="font-size:11px;font-weight:700;color:#FDB913">'+P.A.f.slice(0,5)+' → '+P.B.f.slice(0,5)+' ›</span></a>';
+}
+let MAD={gi:0,k:0,pos:50};
+function mieAD(gi){
+  const G=MIE_VISREG[gi], P=mieADPares(G); if(!P) return;
+  MAD={gi:gi,k:0,pos:50,P:P,ie:G.ie};
+  usoLog('antes_despues',{ie:G.ie,visita:P.A.f+' → '+P.B.f});
+  let m=document.getElementById('mie-ad');
+  if(!m){
+    m=document.createElement('div'); m.id='mie-ad';
+    m.style.cssText='position:fixed;inset:0;background:rgba(10,20,50,.9);z-index:9600;display:flex;align-items:center;justify-content:center;padding:3vh 3vw;font-family:Work Sans,sans-serif';
+    m.innerHTML='<div style="background:#1E3370;border-radius:14px;overflow:hidden;width:min(1100px,100%);box-shadow:0 20px 60px rgba(0,0,0,.5)">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;background:#26408A">'
+      +'<div style="min-width:0"><div id="mad-ie" style="color:#fff;font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>'
+      +'<div style="color:#FDB913;font-weight:800;font-size:12px;margin-top:3px">🔄 Antes / Después · arrastra la barra</div></div>'
+      +'<button onclick="mieADClose()" aria-label="Cerrar" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1">✕</button></div>'
+      +'<div id="mad-stage" style="position:relative;background:#000;height:min(62vh,600px);overflow:hidden;user-select:none;touch-action:none;cursor:ew-resize">'
+      +'<img id="mad-b" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain">'
+      +'<div id="mad-clip" style="position:absolute;inset:0;overflow:hidden"><img id="mad-a" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain"></div>'
+      +'<div id="mad-bar" style="position:absolute;top:0;bottom:0;width:3px;background:#FDB913;transform:translateX(-50%);pointer-events:none">'
+      +'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:50%;background:#FDB913;color:#1E3370;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.4)">⇆</div></div>'
+      +'<span id="mad-la" style="position:absolute;top:12px;left:12px;background:rgba(30,51,112,.88);color:#fff;font-size:12px;font-weight:800;padding:4px 10px;border-radius:14px;pointer-events:none"></span>'
+      +'<span id="mad-lb" style="position:absolute;top:12px;right:12px;background:rgba(253,185,19,.95);color:#1E3370;font-size:12px;font-weight:800;padding:4px 10px;border-radius:14px;pointer-events:none"></span>'
+      +'<div id="mad-fb" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#fff;text-align:center;padding:20px;background:#000">'
+      +'<div style="font-size:40px">🔒</div><div style="font-size:14px;max-width:440px">No fue posible mostrar las fotos aquí. Inicia sesión con tu cuenta corporativa FFIE.</div></div>'
+      +'</div>'
+      +'<div style="display:flex;justify-content:center;align-items:center;gap:12px;padding:10px 12px;background:#1E3370">'
+      +'<button onclick="mieADPar(-1)" aria-label="Pareja anterior" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;width:30px;height:26px;cursor:pointer;font-weight:800">‹</button>'
+      +'<span id="mad-cnt" style="color:#fff;font-size:12px;font-weight:700;min-width:190px;text-align:center"></span>'
+      +'<button onclick="mieADPar(1)" aria-label="Pareja siguiente" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;width:30px;height:26px;cursor:pointer;font-weight:800">›</button></div></div>';
+    m.onclick=e=>{if(e.target===m)mieADClose();};
+    document.body.appendChild(m);
+    const st=m.querySelector('#mad-stage'); let drag=false;
+    const mv=e=>{const r=st.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; MAD.pos=Math.max(0,Math.min(100,x/r.width*100)); mieADPos();};
+    st.addEventListener('mousedown',e=>{drag=true;mv(e);}); window.addEventListener('mouseup',()=>drag=false);
+    st.addEventListener('mousemove',e=>{if(drag)mv(e);});
+    st.addEventListener('touchstart',e=>{drag=true;mv(e);},{passive:true}); st.addEventListener('touchmove',e=>{if(drag)mv(e);},{passive:true}); window.addEventListener('touchend',()=>drag=false);
+    document.addEventListener('keydown',e=>{const g=document.getElementById('mie-ad'); if(!g||g.style.display==='none')return;
+      if(e.key==='Escape')mieADClose(); else if(e.key==='ArrowRight')mieADPar(1); else if(e.key==='ArrowLeft')mieADPar(-1);});
+  }
+  m.style.display='flex'; mieADDraw();
+}
+function mieADPos(){
+  document.getElementById('mad-clip').style.clipPath='inset(0 '+(100-MAD.pos)+'% 0 0)';
+  document.getElementById('mad-bar').style.left=MAD.pos+'%';
+}
+function mieADPar(d){ const n=MAD.P.pares.length; MAD.k=(MAD.k+d+n)%n; mieADDraw(); }
+function mieADDraw(){
+  const P=MAD.P, p=P.pares[MAD.k], src=u=>(typeof mieImgUrl==='function'?mieImgUrl(u):u);
+  document.getElementById('mad-ie').textContent='📍 '+MAD.ie;
+  document.getElementById('mad-la').textContent='ANTES · '+P.A.f;
+  document.getElementById('mad-lb').textContent='DESPUÉS · '+P.B.f;
+  document.getElementById('mad-cnt').textContent=(p[2]?'Foto de referencia':'Pareja '+(MAD.k+(P.pares[0][2]?0:1))+' de '+(P.pares.length-(P.pares[0][2]?1:0)));
+  const fb=document.getElementById('mad-fb'); fb.style.display='none';
+  const a=document.getElementById('mad-a'), b=document.getElementById('mad-b');
+  a.onerror=b.onerror=()=>{fb.style.display='flex';};
+  a.src=src(p[0]); b.src=src(p[1]); mieADPos();
+}
+function mieADClose(){ const m=document.getElementById('mie-ad'); if(m) m.style.display='none'; }
+
+/* ══ REGISTRO DE USO ANÓNIMO → Google Apps Script (LOG_USO) ══
+   Sin nombres, correos ni IP: solo un código aleatorio por equipo. Si USO_URL está vacío, no registra nada. */
+const USO_DASH='Centro de Control';
+const USO_URL='https://script.google.com/macros/s/AKfycby87-j6z__6_MhpKJKeQkiREN62577UP4s0oUMu_QNLfvQltYmPqjzMdJ2Etx8Ez3fmdQ/exec';
+function usoId(k,store){ try{ let v=store.getItem(k); if(!v){ v=Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4); store.setItem(k,v);} return v; }catch(e){ return 'na'; } }
+function usoLog(evento,datos){
+  if(!USO_URL) return;
+  try{
+    const d=Object.assign({evento:evento,dashboard:USO_DASH,equipo:usoId('ffie_uso_eq',localStorage),sesion:usoId('ffie_uso_se',sessionStorage),
+      dispositivo:(window.innerWidth<768?'celular':'computador')},datos||{});
+    const body=JSON.stringify(d);
+    if(navigator.sendBeacon) navigator.sendBeacon(USO_URL,new Blob([body],{type:'text/plain'}));
+    else fetch(USO_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:body});
+  }catch(e){}
+}
+const USO_VISTO={};
+function usoUna(clave,evento,datos){ if(USO_VISTO[clave]) return; USO_VISTO[clave]=1; usoLog(evento,datos); }
 
 function mieShare(slug){
   const url=location.origin+location.pathname+'#ie='+slug;
@@ -893,6 +989,7 @@ function mieSearch(q){
   box.style.display='block';
 }
 function mieGoto(slug){
+  usoLog('buscar',{detalle:slug});
   const box=document.getElementById('mie-sugg'); if(box)box.style.display='none';
   const m=MIE_MARKERS[slug]; if(!m) return;
   const d=MIE_DATA.find(x=>mieSlug(x)===slug);
@@ -954,6 +1051,7 @@ function mieRender(DATA){
       +'</div>'
       +obraHtml
       +mieVisitas(d)+'</div>',{maxWidth:320});
+    m.on('popupopen',()=>usoLog('abrir_colegio',{ie:d.ie,sede:d.sede,municipio:d.mun}));
     MIE_MARKERS[slug]=m;
     mieGroups[d.cat].addLayer(m);
   });
@@ -969,6 +1067,8 @@ function mieRender(DATA){
 
 loadBase().then(()=>initMapaIE());
 setInterval(()=>{loadBase().then(()=>mieLoad());}, 5*60*1000);
+
+try{usoLog('abrir_dashboard',{});}catch(e){}
 </script>
 </body>
 </html>
