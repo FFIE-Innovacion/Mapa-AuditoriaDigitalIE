@@ -752,7 +752,7 @@ function mieADPares(G){
   const A=con[0], B=con[con.length-1];
   const fn=u=>{try{return decodeURIComponent(u.split('/').pop()).toUpperCase();}catch(e){return '';}};
   const refA=A.fotos.find(u=>fn(u).startsWith('REF_')), refB=B.fotos.find(u=>fn(u).startsWith('REF_'));
-  const pares=[(refA&&refB)?[refA,refB,true]:[A.fotos[0],B.fotos[0],false]];
+  const pares=[(refA&&refB)?[refA,refB,true]:[A.fotos[Math.min(1,A.fotos.length-1)],B.fotos[Math.min(1,B.fotos.length-1)],false]];
   return {A:A,B:B,pares:pares};
 }
 function mieADBtn(gi){
@@ -776,8 +776,8 @@ function mieAD(gi){
       +'<div style="color:#FDB913;font-weight:800;font-size:12px;margin-top:3px">🔄 Antes / Después · arrastra la barra</div></div>'
       +'<button onclick="mieADClose()" aria-label="Cerrar" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1">✕</button></div>'
       +'<div id="mad-stage" style="position:relative;background:#000;height:min(62vh,600px);overflow:hidden;user-select:none;touch-action:none;cursor:ew-resize">'
-      +'<img id="mad-b" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain">'
-      +'<div id="mad-clip" style="position:absolute;inset:0;overflow:hidden"><img id="mad-a" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain"></div>'
+      +'<img id="mad-b" alt="" draggable="false" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;-webkit-user-drag:none">'
+      +'<div id="mad-clip" style="position:absolute;inset:0;overflow:hidden"><img id="mad-a" alt="" draggable="false" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;-webkit-user-drag:none"></div>'
       +'<div id="mad-bar" style="position:absolute;top:0;bottom:0;width:3px;background:#FDB913;transform:translateX(-50%);pointer-events:none">'
       +'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:50%;background:#FDB913;color:#1E3370;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.4)">⇆</div></div>'
       +'<span id="mad-la" style="position:absolute;top:12px;left:12px;background:rgba(30,51,112,.88);color:#fff;font-size:12px;font-weight:800;padding:4px 10px;border-radius:14px;pointer-events:none"></span>'
@@ -792,10 +792,12 @@ function mieAD(gi){
     m.onclick=e=>{if(e.target===m)mieADClose();};
     document.body.appendChild(m);
     const st=m.querySelector('#mad-stage'); let drag=false;
-    const mv=e=>{const r=st.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; MAD.pos=Math.max(0,Math.min(100,x/r.width*100)); mieADPos();};
-    st.addEventListener('mousedown',e=>{drag=true;mv(e);}); window.addEventListener('mouseup',()=>drag=false);
-    st.addEventListener('mousemove',e=>{if(drag)mv(e);});
-    st.addEventListener('touchstart',e=>{drag=true;mv(e);},{passive:true}); st.addEventListener('touchmove',e=>{if(drag)mv(e);},{passive:true}); window.addEventListener('touchend',()=>drag=false);
+    const mv=e=>{const r=st.getBoundingClientRect(); MAD.pos=Math.max(0,Math.min(100,(e.clientX-r.left)/r.width*100)); mieADPos();};
+    st.addEventListener('pointerdown',e=>{drag=true; try{st.setPointerCapture(e.pointerId);}catch(_){ } mv(e); e.preventDefault();});
+    st.addEventListener('pointermove',e=>{if(drag){mv(e); e.preventDefault();}});
+    const fin=e=>{drag=false; try{st.releasePointerCapture(e.pointerId);}catch(_){ }};
+    st.addEventListener('pointerup',fin); st.addEventListener('pointercancel',fin);
+    st.addEventListener('dragstart',e=>e.preventDefault());
     document.addEventListener('keydown',e=>{const g=document.getElementById('mie-ad'); if(!g||g.style.display==='none')return;
       if(e.key==='Escape')mieADClose(); else if(e.key==='ArrowRight')mieADPar(1); else if(e.key==='ArrowLeft')mieADPar(-1);});
   }
