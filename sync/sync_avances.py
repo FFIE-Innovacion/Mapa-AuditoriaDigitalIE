@@ -138,10 +138,19 @@ def read_csv_text(text: str) -> list[dict[str, Any]]:
     return read_table(list(csv.reader(io.StringIO(text))))
 
 
+ULTIMA_HOJA = ""
+HOJAS_AVANCE = ("BASE_PM", "Base de datos", "Nuevos o ampliados")
+
+
 def read_xlsx_sheet(path: str, sheet: str) -> list[dict[str, Any]]:
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    if sheet == "auto":
+        sheet = next((h for h in HOJAS_AVANCE if h in wb.sheetnames), "")
+        print(f"→ Pestaña de avance detectada: '{sheet}'")
     if sheet not in wb.sheetnames:
         raise SystemExit(f"[ERROR] La pestaña '{sheet}' no existe en {path}. Hay: {wb.sheetnames}")
+    global ULTIMA_HOJA
+    ULTIMA_HOJA = sheet
     ws = wb[sheet]
     return read_table([list(r) for r in ws.iter_rows(values_only=True)])
 
@@ -199,7 +208,9 @@ C_AVANCE = "AVANCE EJECUTADO DE OBRA"
 C_ESTADO = "ESTADO DEL ACTA"
 C_ETAPA = "ETAPA DE OBRA"
 C_FASE = "FASE ACTUAL"
-C_TIPO = "TIPO DE INTERVENCION"
+C_TIPO = ("TIPO DE INTERVENCION", "TIPO INTERVENCION")
+C_LLAVE = "LLAVE MEN"
+C_INICIO = "FECHA DE INICIO DE OBRA"
 
 
 def get(row: dict, *keys, default=None):
@@ -236,7 +247,10 @@ def ultima_visita_por_ie(visitas: list[dict], corte: str) -> tuple[dict[str, dic
             "mes_ultima_visita": None,
             "visitas_ejecutadas": 0,
             "meses_en_plan": 0,
+            "llave": "",
         })
+        if get(r, C_LLAVE):
+            e["llave"] = str(get(r, C_LLAVE)).strip()
         e["meses_en_plan"] += 1
         # Los datos descriptivos más recientes ganan (por si cambió un nombre)
         for k, c in (("ie", C_IE), ("sede", C_SEDE), ("municipio", C_MUN), ("coordinacion", C_COORD)):
@@ -269,7 +283,9 @@ def indexar_matriz(matriz: list[dict]) -> dict[str, list[dict]]:
             "estado_acta": get(r, C_ESTADO),
             "etapa": get(r, C_ETAPA),
             "fase": get(r, C_FASE),
-            "tipo_intervencion": get(r, C_TIPO),
+            "tipo_intervencion": get(r, *C_TIPO),
+            "llave": str(get(r, C_LLAVE, default="")).strip(),
+            "fecha_inicio": parse_date(get(r, C_INICIO)),
             "ie_matriz": get(r, C_IE),
             "sede_matriz": get(r, C_SEDE),
         })
@@ -278,7 +294,23 @@ def indexar_matriz(matriz: list[dict]) -> dict[str, list[dict]]:
     return idx
 
 
-def avance_para(filas: list[dict], mes_visita: str | None, corte: str) -> dict | None:
+def elegir_proyecto(filas: list[dict], llave: str = "") -> dict:
+    """Una sede puede tener varios proyectos. Orden de preferencia:
+       1) el de la misma LLAVE MEN que la visita (si la visita la trae);
+       2) los que tienen % de avance;
+       3) los no terminados (en ejecución / suspensión) sobre los terminados;
+       4) el de fecha de inicio de obra más reciente."""
+    if llave:
+        m = [f for f in filas if f.get("llave") == llave]
+        if m:
+            return m[-1]
+    def clave(f):
+        estado = str(f.get("estado_acta") or "").upper()
+        return (f["avance_pct"] is not None, "TERMINAD" not in estado, f.get("fecha_inicio") or date.min)
+    return max(filas, key=clave)
+
+
+def avance_para(filas: list[dict], mes_visita: str | None, corte: str, llave: str = "") -> dict | None:
     """
     Regla: el % de avance es el de la fila del mes de la ÚLTIMA VISITA EJECUTADA.
     Los meses precargados a futuro arrastran un % viejo, así que NO se toma
@@ -292,8 +324,8 @@ def avance_para(filas: list[dict], mes_visita: str | None, corte: str) -> dict |
     if not filas:
         return None
     sin_mes = [f for f in filas if f["mes"] is None]
-    if sin_mes:                                   # hoja tipo "Nuevos o ampliados"
-        f = sin_mes[-1]
+    if sin_mes:                                   # hoja de una fila por proyecto ('Base de datos', 'Nuevos o ampliados')
+        f = elegir_proyecto(sin_mes, llave)
         return {**f, "avance_origen": "matriz_actual", "avance_mes": None}
 
     tope = mes_visita or corte
@@ -311,13 +343,13 @@ def avance_para(filas: list[dict], mes_visita: str | None, corte: str) -> dict |
     return {**f, "avance_origen": "ultimo_disponible" if mes_visita else "sin_visita", "avance_mes": f["mes"]}
 
 
-def build(visitas, matriz, corte: str, ahora: datetime) -> dict:
+def build(visitas, matriz, corte: str, ahora: datetime, fuente_avance: str = "") -> dict:
     por_ie, sin_dane = ultima_visita_por_ie(visitas, corte)
     idx = indexar_matriz(matriz)
 
     ies = []
     for dane, e in por_ie.items():
-        a = avance_para(idx.get(dane, []), e["mes_ultima_visita"], corte) or {}
+        a = avance_para(idx.get(dane, []), e["mes_ultima_visita"], corte, e.get("llave", "")) or {}
         ies.append({
             **e,
             "ultima_visita": e["ultima_visita"].isoformat() if e["ultima_visita"] else None,
@@ -332,6 +364,7 @@ def build(visitas, matriz, corte: str, ahora: datetime) -> dict:
             "tipo_intervencion": a.get("tipo_intervencion"),
             "tiene_avance": a.get("avance_pct") is not None,
         })
+        ies[-1].pop("llave", None)
     ies.sort(key=lambda x: (x["coordinacion"], x["municipio"], x["ie"], x["sede"]))
 
     solo_en_matriz = sorted(set(idx) - set(por_ie))
@@ -342,7 +375,7 @@ def build(visitas, matriz, corte: str, ahora: datetime) -> dict:
         "generado_en": ahora.isoformat(timespec="seconds"),
         "mes_corte": corte,
         "fuente_visitas": "Google Sheet · pestaña BASE_PM",
-        "fuente_avance": "Matriz FFIE (SharePoint) · pestaña BASE_PM · % del mes de la última visita ejecutada",
+        "fuente_avance": fuente_avance or "Matriz FFIE (SharePoint) · pestaña BASE_PM · % del mes de la última visita ejecutada",
         "resumen": {
             "ies_en_plan": len(ies),
             "con_avance": sum(1 for x in ies if x["tiene_avance"]),
@@ -353,7 +386,8 @@ def build(visitas, matriz, corte: str, ahora: datetime) -> dict:
         },
         "alertas": {
             "sin_avance_en_matriz": [{"dane": d, "ie": por_ie[d]["ie"], "sede": por_ie[d]["sede"]} for d in sin_avance],
-            "solo_en_matriz": [{"dane": d, "ie": avances[d]["ie_matriz"], "sede": avances[d]["sede_matriz"]} for d in solo_en_matriz],
+            # Con 'Base de datos' (todo el portafolio FFIE) la lista sería de miles: solo se reporta el conteo
+            "solo_en_matriz": [] if fuente_avance else [{"dane": d, "ie": avances[d]["ie_matriz"], "sede": avances[d]["sede_matriz"]} for d in solo_en_matriz],
             "filas_sin_dane": sin_dane,
         },
         "ies": ies,
@@ -367,7 +401,8 @@ def build(visitas, matriz, corte: str, ahora: datetime) -> dict:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--matriz", help="Ruta al .xlsx/.csv de la Matriz FFIE. Si se omite, usa MATRIZ_CSV_URL")
-    p.add_argument("--matriz-sheet", default="BASE_PM", help="Pestaña con el %% de avance (BASE_PM o 'Nuevos o ampliados')")
+    p.add_argument("--matriz-sheet", default=os.environ.get("MATRIZ_SHEET") or "auto",
+                   help="Pestaña con el %% de avance. 'auto' = la primera que exista entre BASE_PM, 'Base de datos', 'Nuevos o ampliados'")
     p.add_argument("--visitas", help="Archivo local de visitas (.csv o .xlsx). Si se omite, usa VISITAS_CSV_URL")
     p.add_argument("--visitas-sheet", default="BASE_PM")
     p.add_argument("--corte", help="Mes de corte YYYY-MM (por defecto: mes en curso en Bogotá)")
@@ -388,7 +423,10 @@ def main() -> int:
     if not visitas or not matriz:
         raise SystemExit("[ERROR] Una de las fuentes quedó vacía. No se actualiza el JSON.")
 
-    data = build(visitas, matriz, corte, ahora)
+    fuente = ""
+    if ULTIMA_HOJA and ULTIMA_HOJA != "BASE_PM":
+        fuente = f"Seguimiento Vuelos Drones (SharePoint) · pestaña '{ULTIMA_HOJA}' · % de avance actual del proyecto"
+    data = build(visitas, matriz, corte, ahora, fuente)
     r = data["resumen"]
     if r["ies_en_plan"] == 0:
         raise SystemExit("[ERROR] 0 IEs tras el cruce. Revisa encabezados o mes de corte. No se actualiza el JSON.")
