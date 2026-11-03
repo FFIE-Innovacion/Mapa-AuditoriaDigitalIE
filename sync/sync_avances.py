@@ -226,6 +226,10 @@ def get(row: dict, *keys, default=None):
 # Lógica de negocio
 # --------------------------------------------------------------------------- #
 
+def clave_nombre(ie: Any, sede: Any) -> str:
+    return "N:" + norm_name(ie) + "|" + norm_name(sede)
+
+
 def ultima_visita_por_ie(visitas: list[dict], corte: str) -> tuple[dict[str, dict], list[dict]]:
     """Agrupa por DANE y devuelve la última visita ejecutada hasta el mes de corte."""
     por_ie: dict[str, dict] = {}
@@ -235,11 +239,15 @@ def ultima_visita_por_ie(visitas: list[dict], corte: str) -> tuple[dict[str, dic
         if mes is None or mes > corte:
             continue
         dane = norm_dane(get(r, C_DANE))
+        clave = dane
         if not dane:
-            sin_dane.append({"mes": mes, "ie": get(r, C_IE), "sede": get(r, C_SEDE)})
-            continue
+            # Sin código (vacío o '######'): se cruza por nombre de institución + sede
+            if not norm_name(get(r, C_IE)):
+                sin_dane.append({"mes": mes, "ie": get(r, C_IE), "sede": get(r, C_SEDE)})
+                continue
+            clave = clave_nombre(get(r, C_IE), get(r, C_SEDE))
         fecha = parse_date(get(r, C_FECHA_EJ))
-        e = por_ie.setdefault(dane, {
+        e = por_ie.setdefault(clave, {
             "dane": dane,
             "ie": str(get(r, C_IE, default="")).strip(),
             "sede": str(get(r, C_SEDE, default="")).strip(),
@@ -264,6 +272,17 @@ def ultima_visita_por_ie(visitas: list[dict], corte: str) -> tuple[dict[str, dic
             if e["ultima_visita"] is None or fecha > e["ultima_visita"]:
                 e["ultima_visita"] = fecha
                 e["mes_ultima_visita"] = mes
+    # Una sede con algunos meses con DANE y otros con '######': se une a la entrada que sí tiene DANE
+    con_codigo = {clave_nombre(e["ie"], e["sede"]): k for k, e in por_ie.items() if not k.startswith("N:")}
+    for k in [k for k in por_ie if k.startswith("N:")]:
+        destino = con_codigo.get(k)
+        if not destino:
+            continue
+        n, d = por_ie.pop(k), por_ie[destino]
+        d["meses_en_plan"] += n["meses_en_plan"]
+        d["visitas_ejecutadas"] += n["visitas_ejecutadas"]
+        if n["ultima_visita"] and (d["ultima_visita"] is None or n["ultima_visita"] > d["ultima_visita"]):
+            d["ultima_visita"], d["mes_ultima_visita"] = n["ultima_visita"], n["mes_ultima_visita"]
     return por_ie, sin_dane
 
 
@@ -290,11 +309,15 @@ def indexar_matriz(matriz: list[dict]) -> dict[str, list[dict]]:
             "fecha_inicio": parse_date(get(r, C_INICIO)),
             "ie_matriz": get(r, C_IE),
             "sede_matriz": get(r, C_SEDE),
+            "dane_matriz": dane,
         }
         idx.setdefault(dane, []).append(fila)
         # En el Sheet de visitas algunas sedes vienen con la LLAVE MEN (LL1436, 38JA-15…) en vez del DANE
         if fila["llave"] and fila["llave"] != dane:
             idx.setdefault(fila["llave"], []).append(fila)
+        # Respaldo por nombre (para visitas sin código DANE)
+        idx.setdefault(clave_nombre(fila["ie_matriz"], fila["sede_matriz"]), []).append(fila)
+        idx.setdefault("NI:" + norm_name(fila["ie_matriz"]), []).append(fila)
     for l in idx.values():
         l.sort(key=lambda x: x["mes"] or "")
     return idx
@@ -354,9 +377,18 @@ def build(visitas, matriz, corte: str, ahora: datetime, fuente_avance: str = "")
     idx = indexar_matriz(matriz)
 
     ies = []
+    por_nombre = 0
     for dane, e in por_ie.items():
-        llave = e.get("llave") or ("" if dane.isdigit() else dane)
-        a = avance_para(idx.get(dane, []), e["mes_ultima_visita"], corte, llave) or {}
+        llave = e.get("llave") or ("" if dane.isdigit() or dane.startswith("N:") else dane)
+        filas = idx.get(dane, [])
+        if not filas and dane.startswith("N:"):
+            # Si la sede no coincide, se intenta solo con la institución (si es una única sede DANE)
+            cand = idx.get("NI:" + norm_name(e["ie"]), [])
+            if len({norm_dane(f.get("dane_matriz")) for f in cand}) == 1:
+                filas = cand
+        if filas and dane.startswith("N:"):
+            por_nombre += 1
+        a = avance_para(filas, e["mes_ultima_visita"], corte, llave) or {}
         ies.append({
             **e,
             "ultima_visita": e["ultima_visita"].isoformat() if e["ultima_visita"] else None,
@@ -376,7 +408,7 @@ def build(visitas, matriz, corte: str, ahora: datetime, fuente_avance: str = "")
 
     usados = {f["llave"] for e in por_ie for f in idx.get(e, [])}
     solo_en_matriz = sorted(k for k in set(idx) - set(por_ie) if k.isdigit() and not ({f["llave"] for f in idx[k]} & usados))
-    sin_avance = sorted(x["dane"] for x in ies if not x["tiene_avance"])
+    sin_avance = sorted(x["dane"] or clave_nombre(x["ie"], x["sede"]) for x in ies if not x["tiene_avance"])
     avances = {d: idx[d][-1] for d in idx}   # para el reporte de alertas
 
     return {
@@ -390,10 +422,11 @@ def build(visitas, matriz, corte: str, ahora: datetime, fuente_avance: str = "")
             "sin_avance": len(sin_avance),
             "con_visita_ejecutada": sum(1 for x in ies if x["ultima_visita"]),
             "filas_sin_dane": len(sin_dane),
+            "cruzadas_por_nombre": por_nombre,
             "solo_en_matriz": len(solo_en_matriz),
         },
         "alertas": {
-            "sin_avance_en_matriz": [{"dane": d, "ie": por_ie[d]["ie"], "sede": por_ie[d]["sede"]} for d in sin_avance],
+            "sin_avance_en_matriz": [{"dane": por_ie[d]["dane"] if d in por_ie else "", "ie": por_ie[d]["ie"] if d in por_ie else d, "sede": por_ie[d]["sede"] if d in por_ie else ""} for d in sin_avance],
             # Con 'Base de datos' (todo el portafolio FFIE) la lista sería de miles: solo se reporta el conteo
             "solo_en_matriz": [] if fuente_avance else [{"dane": d, "ie": avances[d]["ie_matriz"], "sede": avances[d]["sede_matriz"]} for d in solo_en_matriz],
             "filas_sin_dane": sin_dane,
