@@ -1,125 +1,19 @@
 {
-  "generado_en": "2026-11-03T10:24:27-05:00",
+  "generado_en": "2026-11-03T10:29:26-05:00",
   "mes_corte": "2026-11",
   "fuente_visitas": "Google Sheet · pestaña BASE_PM",
   "fuente_avance": "Seguimiento Vuelos Drones (SharePoint) · pestaña 'Base de datos' · % de avance actual del proyecto",
   "resumen": {
-    "ies_en_plan": 75,
-    "con_avance": 54,
-    "sin_avance": 21,
-    "con_visita_ejecutada": 65,
+    "ies_en_plan": 74,
+    "con_avance": 74,
+    "sin_avance": 0,
+    "con_visita_ejecutada": 64,
     "filas_sin_dane": 0,
-    "cruzadas_por_nombre": 35,
-    "solo_en_matriz": 3384
+    "cruzadas_por_nombre": 44,
+    "solo_en_matriz": 3373
   },
   "alertas": {
-    "sin_avance_en_matriz": [
-      {
-        "dane": "0.00",
-        "ie": "IE JOSE JOAQUIN FLOREZ HERNANDEZ",
-        "sede": "SEDE ARBOLEDA DEL CAMPESTRE"
-      },
-      {
-        "dane": "10,843,307,566.00",
-        "ie": "IE LOTE SAN DIEGO",
-        "sede": "SEDE POLICARPA"
-      },
-      {
-        "dane": "144,001,001,151.00",
-        "ie": "INSTITUCION EDUCATIVA ALMIRANTE PADILLA",
-        "sede": "ALMIRANTE PADILLA"
-      },
-      {
-        "dane": "166,045,000,023.00",
-        "ie": "IE TECNICO INDUSTRIAL SANTO TOMAS DE AQUINO (antes IE SANTO TOMAS DE AQUINO)",
-        "sede": "SE INSTITUTO TECNICO SANTO TOMAS DE AQUINO - SEDE PRINCIPAL (antes SEDE TECNICO INDUSTRIAL SANTO TOMAS DE AQUINO)"
-      },
-      {
-        "dane": "166,045,000,686.00",
-        "ie": "IE SAGRADA FAMILIA",
-        "sede": "SEDE PRINCIPAL"
-      },
-      {
-        "dane": "173,001,011,679.00",
-        "ie": "INST EDUC TEC JOAQUIN PARIS (ANTES IE JOAQUIN PARIS)",
-        "sede": "SEDE 1 JOAQUIN PARIS (ANTES SEDE PRINCIPAL)"
-      },
-      {
-        "dane": "173,001,800,061.00",
-        "ie": "IE JOSE JOAQUIN FLOREZ HERNANDEZ",
-        "sede": "SEDE ARBOLEDA DEL CAMPESTRE"
-      },
-      {
-        "dane": "205,001,012,534.00",
-        "ie": "IE. SAN ANTONIO DE PRADO",
-        "sede": "SEDE PRINCIPAL"
-      },
-      {
-        "dane": "215,759,001,768.00",
-        "ie": "IET NUESTRA SEÑORA DE MORCA",
-        "sede": "SEDE CENTRAL"
-      },
-      {
-        "dane": "244,001,001,635.00",
-        "ie": "INSTITUCION EDUCATIVA TECNICA AGROPECUARIA DE TOMARRAZON",
-        "sede": "CONCENTRACION Y DESARROLLO RURAL"
-      },
-      {
-        "dane": "244,560,000,151.00",
-        "ie": "INSTITUCION ETNOEDUCATIVA RURAL INTERNADO LAACHON MAYAPO",
-        "sede": "INSTITUCION ETNOEDUCATIVA RURAL INTERNADO LAACHON MAYAPO"
-      },
-      {
-        "dane": "244,650,000,761.00",
-        "ie": "INSTITUCION EDUCATIVA RURAL HUGUES MANUEL LACOUTURE",
-        "sede": "INSTITUCION EDUCATIVA RURAL HUGUES MANUEL LACOUTURE"
-      },
-      {
-        "dane": "",
-        "ie": "ANTONIO MARIA CLARET",
-        "sede": "ANTONIO MARIA CLARET"
-      },
-      {
-        "dane": "",
-        "ie": "ARMANDO LUNA",
-        "sede": "ARMANDO LUNA"
-      },
-      {
-        "dane": "",
-        "ie": "I.E.D. RURAL DE PALMIRA",
-        "sede": "ESCUELA RURAL JOSE FRANCISCO ALTAHONA MEJIA"
-      },
-      {
-        "dane": "",
-        "ie": "I.E.D. SAN JOSE DE PUEBLO VIEJO",
-        "sede": "CENTRO URBANO DE NIÑAS"
-      },
-      {
-        "dane": "",
-        "ie": "I.E.D. SAN JOSE DE PUEBLO VIEJO",
-        "sede": "ERM NUEVA FRONTERA"
-      },
-      {
-        "dane": "",
-        "ie": "I.E.D. SAN JOSE DE PUEBLO VIEJO",
-        "sede": "JARDIN INFANTIL CHIQUILLADAS"
-      },
-      {
-        "dane": "",
-        "ie": "IE PATRICIO OLAVE",
-        "sede": "PRINCIPAL"
-      },
-      {
-        "dane": "",
-        "ie": "MARISCAL SUCRE",
-        "sede": "PRINCIPAL"
-      },
-      {
-        "dane": "",
-        "ie": "SAMURINDO",
-        "sede": "SAMURINDO"
-      }
-    ],
+    "sin_avance_en_matriz": [],
     "solo_en_matriz": [],
     "filas_sin_dane": []
   },
@@ -251,7 +145,7 @@
       "tiene_avance": true
     },
     {
-      "dane": "205,001,012,534.00",
+      "dane": "205001012534",
       "ie": "IE. SAN ANTONIO DE PRADO",
       "sede": "SEDE PRINCIPAL",
       "municipio": "Medellín",
@@ -262,14 +156,14 @@
       "meses_en_plan": 9,
       "ie_norm": "IE SAN ANTONIO DE PRADO",
       "sede_norm": "SEDE PRINCIPAL",
-      "avance_pct": null,
+      "avance_pct": 93.66,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN SUSPENSIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Nuevo o Ampliado",
+      "tiene_avance": true
     },
     {
       "dane": "",
@@ -283,14 +177,14 @@
       "meses_en_plan": 6,
       "ie_norm": "ANTONIO MARIA CLARET",
       "sede_norm": "ANTONIO MARIA CLARET",
-      "avance_pct": null,
+      "avance_pct": 100.0,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "TERMINADO",
+      "etapa": "OBRA TERMINADA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Mesas de Diálogo",
+      "tiene_avance": true
     },
     {
       "dane": "",
@@ -304,14 +198,14 @@
       "meses_en_plan": 5,
       "ie_norm": "ARMANDO LUNA",
       "sede_norm": "ARMANDO LUNA",
-      "avance_pct": null,
+      "avance_pct": 35.0,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN SUSPENSIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Nuevos Mejoramientos",
+      "tiene_avance": true
     },
     {
       "dane": "",
@@ -367,14 +261,14 @@
       "meses_en_plan": 4,
       "ie_norm": "SAMURINDO",
       "sede_norm": "SAMURINDO",
-      "avance_pct": null,
+      "avance_pct": 1.0,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN EJECUCIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Nuevos Mejoramientos",
+      "tiene_avance": true
     },
     {
       "dane": "",
@@ -461,7 +355,7 @@
       "tiene_avance": true
     },
     {
-      "dane": "244,560,000,151.00",
+      "dane": "244560000151",
       "ie": "INSTITUCION ETNOEDUCATIVA RURAL INTERNADO LAACHON MAYAPO",
       "sede": "INSTITUCION ETNOEDUCATIVA RURAL INTERNADO LAACHON MAYAPO",
       "municipio": "Manaure",
@@ -472,17 +366,17 @@
       "meses_en_plan": 1,
       "ie_norm": "INSTITUCION ETNOEDUCATIVA RURAL INTERNADO LAACHON MAYAPO",
       "sede_norm": "INSTITUCION ETNOEDUCATIVA RURAL INTERNADO LAACHON MAYAPO",
-      "avance_pct": null,
+      "avance_pct": 13.59,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN EJECUCIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Mod 17 (ley 21)",
+      "tiene_avance": true
     },
     {
-      "dane": "144,001,001,151.00",
+      "dane": "144001001151",
       "ie": "INSTITUCION EDUCATIVA ALMIRANTE PADILLA",
       "sede": "ALMIRANTE PADILLA",
       "municipio": "Riohacha",
@@ -493,17 +387,17 @@
       "meses_en_plan": 1,
       "ie_norm": "IE ALMIRANTE PADILLA",
       "sede_norm": "ALMIRANTE PADILLA",
-      "avance_pct": null,
+      "avance_pct": 31.66,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN EJECUCIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Mod 17 (ley 21)",
+      "tiene_avance": true
     },
     {
-      "dane": "244,001,001,635.00",
+      "dane": "244001001635",
       "ie": "INSTITUCION EDUCATIVA TECNICA AGROPECUARIA DE TOMARRAZON",
       "sede": "CONCENTRACION Y DESARROLLO RURAL",
       "municipio": "Riohacha",
@@ -514,17 +408,17 @@
       "meses_en_plan": 1,
       "ie_norm": "IE TECNICA AGROPECUARIA DE TOMARRAZON",
       "sede_norm": "CONCENTRACION Y DESARROLLO RURAL",
-      "avance_pct": null,
+      "avance_pct": 23.8,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN EJECUCIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Mod 17 (ley 21)",
+      "tiene_avance": true
     },
     {
-      "dane": "244,650,000,761.00",
+      "dane": "244650000761",
       "ie": "INSTITUCION EDUCATIVA RURAL HUGUES MANUEL LACOUTURE",
       "sede": "INSTITUCION EDUCATIVA RURAL HUGUES MANUEL LACOUTURE",
       "municipio": "San Juan Del Cesar",
@@ -535,14 +429,14 @@
       "meses_en_plan": 1,
       "ie_norm": "IE RURAL HUGUES MANUEL LACOUTURE",
       "sede_norm": "IE RURAL HUGUES MANUEL LACOUTURE",
-      "avance_pct": null,
+      "avance_pct": 80.41,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN SUSPENSIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Mod 17 (ley 21)",
+      "tiene_avance": true
     },
     {
       "dane": "EST-001",
@@ -629,7 +523,7 @@
       "tiene_avance": true
     },
     {
-      "dane": "10,843,307,566.00",
+      "dane": "10843307566",
       "ie": "IE LOTE SAN DIEGO",
       "sede": "SEDE POLICARPA",
       "municipio": "Bogotá, D.C.",
@@ -640,14 +534,14 @@
       "meses_en_plan": 10,
       "ie_norm": "IE LOTE SAN DIEGO",
       "sede_norm": "SEDE POLICARPA",
-      "avance_pct": null,
+      "avance_pct": 72.46,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN EJECUCIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Nuevo o Ampliado",
+      "tiene_avance": true
     },
     {
       "dane": "LL402",
@@ -755,7 +649,7 @@
       "tiene_avance": true
     },
     {
-      "dane": "215,759,001,768.00",
+      "dane": "215759001768",
       "ie": "IET NUESTRA SEÑORA DE MORCA",
       "sede": "SEDE CENTRAL",
       "municipio": "Sogamoso",
@@ -766,14 +660,14 @@
       "meses_en_plan": 10,
       "ie_norm": "IET NUESTRA SENORA DE MORCA",
       "sede_norm": "SEDE CENTRAL",
-      "avance_pct": null,
+      "avance_pct": 69.8,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN EJECUCIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Nuevo o Ampliado",
+      "tiene_avance": true
     },
     {
       "dane": "",
@@ -829,17 +723,17 @@
       "meses_en_plan": 5,
       "ie_norm": "IE D SAN JOSE DE PUEBLO VIEJO",
       "sede_norm": "ERM NUEVA FRONTERA",
-      "avance_pct": null,
+      "avance_pct": 40.33,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN SUSPENSIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Mod 17 (ley 21)",
+      "tiene_avance": true
     },
     {
-      "dane": "166,045,000,686.00",
+      "dane": "166045000686",
       "ie": "IE SAGRADA FAMILIA",
       "sede": "SEDE PRINCIPAL",
       "municipio": "Apía",
@@ -850,17 +744,17 @@
       "meses_en_plan": 10,
       "ie_norm": "IE SAGRADA FAMILIA",
       "sede_norm": "SEDE PRINCIPAL",
-      "avance_pct": null,
+      "avance_pct": 86.0,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN SUSPENSIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Nuevo o Ampliado",
+      "tiene_avance": true
     },
     {
-      "dane": "166,045,000,023.00",
+      "dane": "166045000023",
       "ie": "IE TECNICO INDUSTRIAL SANTO TOMAS DE AQUINO (antes IE SANTO TOMAS DE AQUINO)",
       "sede": "SE INSTITUTO TECNICO SANTO TOMAS DE AQUINO - SEDE PRINCIPAL (antes SEDE TECNICO INDUSTRIAL SANTO TOMAS DE AQUINO)",
       "municipio": "Apía",
@@ -871,56 +765,35 @@
       "meses_en_plan": 8,
       "ie_norm": "IE TECNICO INDUSTRIAL SANTO TOMAS DE AQUINO ANTES IE SANTO TOMAS DE AQUINO",
       "sede_norm": "SE INSTITUTO TECNICO SANTO TOMAS DE AQUINO SEDE PRINCIPAL ANTES SEDE TECNICO INDUSTRIAL SANTO TOMAS DE AQUINO",
-      "avance_pct": null,
+      "avance_pct": 95.18,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "TERMINADO",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Nuevo o Ampliado",
+      "tiene_avance": true
     },
     {
-      "dane": "0.00",
-      "ie": "IE JOSE JOAQUIN FLOREZ HERNANDEZ",
-      "sede": "SEDE ARBOLEDA DEL CAMPESTRE",
-      "municipio": "Ibagué",
-      "coordinacion": "Eje Cafetero",
-      "ultima_visita": "2026-03-02",
-      "mes_ultima_visita": "2026-03",
-      "visitas_ejecutadas": 1,
-      "meses_en_plan": 2,
-      "ie_norm": "IE JOSE JOAQUIN FLOREZ HERNANDEZ",
-      "sede_norm": "SEDE ARBOLEDA DEL CAMPESTRE",
-      "avance_pct": null,
-      "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
-      "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
-    },
-    {
-      "dane": "173,001,800,061.00",
+      "dane": "173001800061",
       "ie": "IE JOSE JOAQUIN FLOREZ HERNANDEZ",
       "sede": "SEDE ARBOLEDA DEL CAMPESTRE",
       "municipio": "Ibagué",
       "coordinacion": "Eje Cafetero",
       "ultima_visita": "2026-09-17",
       "mes_ultima_visita": "2026-09",
-      "visitas_ejecutadas": 1,
-      "meses_en_plan": 1,
+      "visitas_ejecutadas": 2,
+      "meses_en_plan": 3,
       "ie_norm": "IE JOSE JOAQUIN FLOREZ HERNANDEZ",
       "sede_norm": "SEDE ARBOLEDA DEL CAMPESTRE",
-      "avance_pct": null,
+      "avance_pct": 94.95,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN EJECUCIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Nuevo o Ampliado",
+      "tiene_avance": true
     },
     {
       "dane": "",
@@ -944,7 +817,7 @@
       "tiene_avance": true
     },
     {
-      "dane": "173,001,011,679.00",
+      "dane": "173001011679",
       "ie": "INST EDUC TEC JOAQUIN PARIS (ANTES IE JOAQUIN PARIS)",
       "sede": "SEDE 1 JOAQUIN PARIS (ANTES SEDE PRINCIPAL)",
       "municipio": "Ibagué",
@@ -955,14 +828,14 @@
       "meses_en_plan": 9,
       "ie_norm": "INST EDUC TEC JOAQUIN PARIS ANTES IE JOAQUIN PARIS",
       "sede_norm": "SEDE 1 JOAQUIN PARIS ANTES SEDE PRINCIPAL",
-      "avance_pct": null,
+      "avance_pct": 78.92,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN SUSPENSIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Nuevo o Ampliado",
+      "tiene_avance": true
     },
     {
       "dane": "",
@@ -1060,14 +933,14 @@
       "meses_en_plan": 7,
       "ie_norm": "MARISCAL SUCRE",
       "sede_norm": "PRINCIPAL",
-      "avance_pct": null,
+      "avance_pct": 75.14,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN SUSPENSIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Nuevo o Ampliado",
+      "tiene_avance": true
     },
     {
       "dane": "",
@@ -1081,14 +954,14 @@
       "meses_en_plan": 1,
       "ie_norm": "IE D RURAL DE PALMIRA",
       "sede_norm": "ESCUELA RURAL JOSE FRANCISCO ALTAHONA MEJIA",
-      "avance_pct": null,
+      "avance_pct": 38.0,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN SUSPENSIÓN",
+      "etapa": "DISEÑO",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Mod 21 (Ley 21)",
+      "tiene_avance": true
     },
     {
       "dane": "",
@@ -1102,14 +975,14 @@
       "meses_en_plan": 1,
       "ie_norm": "IE D SAN JOSE DE PUEBLO VIEJO",
       "sede_norm": "CENTRO URBANO DE NINAS",
-      "avance_pct": null,
+      "avance_pct": 50.0,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN EJECUCIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Mod 17 (ley 21)",
+      "tiene_avance": true
     },
     {
       "dane": "",
@@ -1123,14 +996,14 @@
       "meses_en_plan": 1,
       "ie_norm": "IE D SAN JOSE DE PUEBLO VIEJO",
       "sede_norm": "JARDIN INFANTIL CHIQUILLADAS",
-      "avance_pct": null,
+      "avance_pct": 50.12,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN EJECUCIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Mod 17 (ley 21)",
+      "tiene_avance": true
     },
     {
       "dane": "LL4-0156",
@@ -1396,14 +1269,14 @@
       "meses_en_plan": 2,
       "ie_norm": "IE PATRICIO OLAVE",
       "sede_norm": "PRINCIPAL",
-      "avance_pct": null,
+      "avance_pct": 0.0,
       "avance_mes": null,
-      "avance_origen": null,
-      "estado_acta": null,
-      "etapa": null,
+      "avance_origen": "matriz_actual",
+      "estado_acta": "EN REASIGNACIÓN",
+      "etapa": "LICENCIA EXPEDIDA",
       "fase": null,
-      "tipo_intervencion": null,
-      "tiene_avance": false
+      "tipo_intervencion": "Nuevo o Ampliado",
+      "tiene_avance": true
     },
     {
       "dane": "",
