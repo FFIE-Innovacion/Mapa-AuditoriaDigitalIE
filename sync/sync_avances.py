@@ -68,6 +68,8 @@ def norm_dane(v: Any) -> str:
     if isinstance(v, float) and v.is_integer():
         v = int(v)
     s = str(v).strip()
+    if re.fullmatch(r"#+", s):          # '######' = celda que Sheets no alcanzó a mostrar
+        return ""
     return "" if s in ("", "0", "nan", "None") else s
 
 
@@ -276,7 +278,7 @@ def indexar_matriz(matriz: list[dict]) -> dict[str, list[dict]]:
         dane = norm_dane(get(r, C_DANE))
         if not dane:
             continue
-        idx.setdefault(dane, []).append({
+        fila = {
             "mes": parse_month(get(r, *C_MES)),
             "fecha_ejecutada": parse_date(get(r, C_FECHA_EJ)),
             "avance_pct": parse_pct(get(r, C_AVANCE)),
@@ -288,7 +290,11 @@ def indexar_matriz(matriz: list[dict]) -> dict[str, list[dict]]:
             "fecha_inicio": parse_date(get(r, C_INICIO)),
             "ie_matriz": get(r, C_IE),
             "sede_matriz": get(r, C_SEDE),
-        })
+        }
+        idx.setdefault(dane, []).append(fila)
+        # En el Sheet de visitas algunas sedes vienen con la LLAVE MEN (LL1436, 38JA-15…) en vez del DANE
+        if fila["llave"] and fila["llave"] != dane:
+            idx.setdefault(fila["llave"], []).append(fila)
     for l in idx.values():
         l.sort(key=lambda x: x["mes"] or "")
     return idx
@@ -349,7 +355,8 @@ def build(visitas, matriz, corte: str, ahora: datetime, fuente_avance: str = "")
 
     ies = []
     for dane, e in por_ie.items():
-        a = avance_para(idx.get(dane, []), e["mes_ultima_visita"], corte, e.get("llave", "")) or {}
+        llave = e.get("llave") or ("" if dane.isdigit() else dane)
+        a = avance_para(idx.get(dane, []), e["mes_ultima_visita"], corte, llave) or {}
         ies.append({
             **e,
             "ultima_visita": e["ultima_visita"].isoformat() if e["ultima_visita"] else None,
@@ -367,7 +374,8 @@ def build(visitas, matriz, corte: str, ahora: datetime, fuente_avance: str = "")
         ies[-1].pop("llave", None)
     ies.sort(key=lambda x: (x["coordinacion"], x["municipio"], x["ie"], x["sede"]))
 
-    solo_en_matriz = sorted(set(idx) - set(por_ie))
+    usados = {f["llave"] for e in por_ie for f in idx.get(e, [])}
+    solo_en_matriz = sorted(k for k in set(idx) - set(por_ie) if k.isdigit() and not ({f["llave"] for f in idx[k]} & usados))
     sin_avance = sorted(x["dane"] for x in ies if not x["tiene_avance"])
     avances = {d: idx[d][-1] for d in idx}   # para el reporte de alertas
 
