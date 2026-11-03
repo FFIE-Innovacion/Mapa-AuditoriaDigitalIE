@@ -68,6 +68,9 @@ def norm_dane(v: Any) -> str:
     if isinstance(v, float) and v.is_integer():
         v = int(v)
     s = str(v).strip()
+    if re.fullmatch(r"\d{1,3}([.,]\d{3})+([.,]0+)?", s) or re.fullmatch(r"\d+[.,]0+", s):
+        s = re.sub(r"[.,]0+$", "", s) if not re.fullmatch(r"\d{1,3}([.,]\d{3})+", s) else s
+        s = re.sub(r"[.,]", "", s)
     if re.fullmatch(r"#+", s):          # '######' = celda que Sheets no alcanzó a mostrar
         return ""
     return "" if s in ("", "0", "nan", "None") else s
@@ -226,6 +229,22 @@ def get(row: dict, *keys, default=None):
 # Lógica de negocio
 # --------------------------------------------------------------------------- #
 
+GENERICAS = {"IE", "I", "E", "D", "R", "M", "T", "IED", "IET", "IEM", "IER", "INSTITUCION", "EDUCATIVA", "EDUCATIVO",
+             "DEPARTAMENTAL", "DPTAL", "INST", "EDUC", "SEDE", "PRINCIPAL", "PRINICPAL", "CENTRAL", "DE", "LA", "EL", "DEL"}
+
+
+def nucleo(s: Any) -> str:
+    """'I.E.D. Rural de Palmira' -> 'RURAL PALMIRA'; 'SEDE PRINCIPAL' -> ''."""
+    s = re.sub(r"\(.*?\)", " ", "" if s is None else str(s))
+    return " ".join(t for t in norm_header(s).split() if t not in GENERICAS)
+
+
+def variantes(s: Any) -> list[str]:
+    """Nombre actual + nombres '(antes …)'."""
+    s = "" if s is None else str(s)
+    return [s] + re.findall(r"\(\s*antes\s+(.*?)\)", s, flags=re.I)
+
+
 def clave_nombre(ie: Any, sede: Any) -> str:
     return "N:" + norm_name(ie) + "|" + norm_name(sede)
 
@@ -318,6 +337,10 @@ def indexar_matriz(matriz: list[dict]) -> dict[str, list[dict]]:
         # Respaldo por nombre (para visitas sin código DANE)
         idx.setdefault(clave_nombre(fila["ie_matriz"], fila["sede_matriz"]), []).append(fila)
         idx.setdefault("NI:" + norm_name(fila["ie_matriz"]), []).append(fila)
+        for vi in variantes(fila["ie_matriz"]):
+            for vs in variantes(fila["sede_matriz"]):
+                idx.setdefault("C:" + nucleo(vi) + "|" + nucleo(vs), []).append(fila)
+            idx.setdefault("CI:" + nucleo(vi), []).append(fila)
     for l in idx.values():
         l.sort(key=lambda x: x["mes"] or "")
     return idx
@@ -372,6 +395,30 @@ def avance_para(filas: list[dict], mes_visita: str | None, corte: str, llave: st
     return {**f, "avance_origen": "ultimo_disponible" if mes_visita else "sin_visita", "avance_mes": f["mes"]}
 
 
+def buscar_por_nombre(idx: dict, ie: Any, sede: Any) -> list[dict]:
+    """Respaldo cuando la visita no trae código: nombre exacto → núcleo del nombre → solo institución."""
+    def un_dane(c):
+        return c if c and len({f.get("dane_matriz") for f in c}) == 1 else []
+    ci, cs = nucleo(ie), nucleo(sede)
+    if not ci:
+        return []
+    for k in ("NI:" + norm_name(ie),):
+        if un_dane(idx.get(k, [])):
+            return idx[k]
+    if idx.get(f"C:{ci}|{cs}"):
+        return un_dane(idx[f"C:{ci}|{cs}"]) or idx[f"C:{ci}|{cs}"]
+    if cs == ci and idx.get(f"C:{ci}|"):            # sede con el mismo nombre de la IE = sede principal
+        return idx[f"C:{ci}|"]
+    cand = un_dane(idx.get("CI:" + ci, []))
+    if cand:
+        return cand
+    # 'ARMANDO LUNA' -> 'ARMANDO LUNA ROA' (solo si hay una única coincidencia)
+    pref = [k for k in idx if k.startswith("CI:" + ci + " ")]
+    if len(pref) == 1:
+        return un_dane(idx[pref[0]])
+    return []
+
+
 def build(visitas, matriz, corte: str, ahora: datetime, fuente_avance: str = "") -> dict:
     por_ie, sin_dane = ultima_visita_por_ie(visitas, corte)
     idx = indexar_matriz(matriz)
@@ -382,10 +429,7 @@ def build(visitas, matriz, corte: str, ahora: datetime, fuente_avance: str = "")
         llave = e.get("llave") or ("" if dane.isdigit() or dane.startswith("N:") else dane)
         filas = idx.get(dane, [])
         if not filas and dane.startswith("N:"):
-            # Si la sede no coincide, se intenta solo con la institución (si es una única sede DANE)
-            cand = idx.get("NI:" + norm_name(e["ie"]), [])
-            if len({norm_dane(f.get("dane_matriz")) for f in cand}) == 1:
-                filas = cand
+            filas = buscar_por_nombre(idx, e["ie"], e["sede"])
         if filas and dane.startswith("N:"):
             por_nombre += 1
         a = avance_para(filas, e["mes_ultima_visita"], corte, llave) or {}
