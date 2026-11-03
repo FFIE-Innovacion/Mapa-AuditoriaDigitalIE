@@ -225,6 +225,7 @@ body{font-family:'Work Sans',sans-serif}
 .fb3{background:var(--navy);color:rgba(255,255,255,.7)}
 .fb3 strong{color:#fff}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
 </head>
 <body>
 
@@ -821,19 +822,69 @@ function mieADDraw(){
 }
 function mieADClose(){ const m=document.getElementById('mie-ad'); if(m) m.style.display='none'; }
 
-/* ══ REGISTRO DE USO ANÓNIMO → Google Apps Script (LOG_USO) ══
-   Sin nombres, correos ni IP: solo un código aleatorio por equipo. Si USO_URL está vacío, no registra nada. */
+/* ══ INICIO DE SESIÓN FFIE (Microsoft Entra ID) + REGISTRO DE USO → Google Apps Script (LOG_USO) ══
+   El usuario entra con su cuenta @ffie.com.co; el log guarda nombre y correo además del código del equipo.
+   Si Entra ID no responde (o MSAL no carga), el tablero NO se bloquea: registra como antes, sin nombre. */
+const AUTH_CFG={
+  clientId:'7ac92d94-bd41-455d-89aa-30a0feb610d0',             // Id. de aplicación (cliente)
+  tenantId:'99cc71c4-219d-43cd-88f6-bf6d7b8e0d30',             // Id. de directorio (inquilino)
+  obligatorio:false                                            // true = pide iniciar sesión al entrar
+};
+let AUTH_APP=null, USO_USER=null, AUTH_REDIR=false;
+const USO_LISTO=(async()=>{
+  try{
+    if(!window.msal||!AUTH_CFG.clientId) return null;
+    AUTH_APP=new msal.PublicClientApplication({
+      auth:{clientId:AUTH_CFG.clientId,authority:'https://login.microsoftonline.com/'+AUTH_CFG.tenantId,
+            redirectUri:location.origin+location.pathname.replace(/index\.html$/i,'')},
+      cache:{cacheLocation:'localStorage'},
+      system:{iframeHashTimeout:5000}
+    });
+    await AUTH_APP.initialize();
+    const r=await AUTH_APP.handleRedirectPromise();
+    let cta=(r&&r.account)||AUTH_APP.getActiveAccount()||AUTH_APP.getAllAccounts()[0];
+    if(!cta){
+      try{ const s=await AUTH_APP.ssoSilent({scopes:['User.Read']}); cta=s.account; }catch(e){}
+    }
+    if(!cta){
+      if(AUTH_CFG.obligatorio){ AUTH_REDIR=true; await AUTH_APP.loginRedirect({scopes:['User.Read']}); return null; }
+      authPintar(null); return null;
+    }
+    AUTH_APP.setActiveAccount(cta);
+    USO_USER={nombre:cta.name||'',correo:(cta.username||'').toLowerCase(),oid:(cta.idTokenClaims&&cta.idTokenClaims.oid)||cta.localAccountId||''};
+    authPintar(USO_USER);
+    return USO_USER;
+  }catch(e){ console.warn('Entra ID no disponible:',e); try{ if(AUTH_APP) authPintar(null); }catch(_){} return null; }
+})();
+function authPintar(u){
+  let el=document.getElementById('auth-user');
+  if(!el){ el=document.createElement('div'); el.id='auth-user';
+    el.style.cssText='position:fixed;right:12px;bottom:12px;z-index:9999;background:#26408A;color:#fff;font:600 11px Work Sans,sans-serif;padding:6px 10px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.25);max-width:70vw';
+    document.body.appendChild(el); }
+  el.innerHTML=u
+    ? '👤 '+u.nombre.replace(/</g,'&lt;')+' · <span style="opacity:.7;font-weight:400">el acceso queda registrado</span> · <a href="#" onclick="authSalir();return false" style="color:#FDB913;text-decoration:none">Salir</a>'
+    : '<a href="#" onclick="authEntrar();return false" style="color:#FDB913;text-decoration:none">Iniciar sesión con cuenta FFIE</a>';
+}
+function authEntrar(){ if(AUTH_APP) AUTH_APP.loginRedirect({scopes:['User.Read'],prompt:'select_account'}); }
+function authSalir(){ if(AUTH_APP) AUTH_APP.logoutRedirect({account:AUTH_APP.getActiveAccount(),postLogoutRedirectUri:location.origin+location.pathname.replace(/index\.html$/i,'')}); }
+
 const USO_DASH='Centro de Control';
 const USO_URL='https://script.google.com/macros/s/AKfycby87-j6z__6_MhpKJKeQkiREN62577UP4s0oUMu_QNLfvQltYmPqjzMdJ2Etx8Ez3fmdQ/exec';
 function usoId(k,store){ try{ let v=store.getItem(k); if(!v){ v=Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4); store.setItem(k,v);} return v; }catch(e){ return 'na'; } }
+function usoEnviar(d){
+  const body=JSON.stringify(d);
+  if(navigator.sendBeacon) navigator.sendBeacon(USO_URL,new Blob([body],{type:'text/plain'}));
+  else fetch(USO_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:body});
+}
 function usoLog(evento,datos){
   if(!USO_URL) return;
   try{
     const d=Object.assign({evento:evento,dashboard:USO_DASH,equipo:usoId('ffie_uso_eq',localStorage),sesion:usoId('ffie_uso_se',sessionStorage),
       dispositivo:(window.innerWidth<768?'celular':'computador')},datos||{});
-    const body=JSON.stringify(d);
-    if(navigator.sendBeacon) navigator.sendBeacon(USO_URL,new Blob([body],{type:'text/plain'}));
-    else fetch(USO_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:body});
+    const conUsuario=()=>{ if(AUTH_REDIR) return; if(USO_USER){ d.nombre=USO_USER.nombre; d.correo=USO_USER.correo; d.oid=USO_USER.oid; } usoEnviar(d); };
+    if(USO_USER) return conUsuario();
+    // Espera el inicio de sesión (máx. 15 s) para no perder el nombre en los primeros eventos
+    Promise.race([USO_LISTO,new Promise(r=>setTimeout(r,15000))]).then(conUsuario,conUsuario);
   }catch(e){}
 }
 const USO_VISTO={};
