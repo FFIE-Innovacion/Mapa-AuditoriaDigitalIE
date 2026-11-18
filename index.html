@@ -224,6 +224,7 @@ body{font-family:'Work Sans',sans-serif}
 .lbw{background:var(--brd)}
 .fb3{background:var(--navy);color:rgba(255,255,255,.7)}
 .fb3 strong{color:#fff}
+.leaflet-control-layers{font-family:'Work Sans',sans-serif;font-size:12px;font-weight:600;color:var(--navy);border-radius:10px!important;padding:2px 4px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
 </head>
@@ -985,8 +986,16 @@ function mieVideoClose(){
 function initMapaIE(){
   if(mieMap){ setTimeout(()=>mieMap.invalidateSize(),150); return; }
   mieMap=L.map('mapaIE',{zoomControl:true}).setView([4.6,-74.3],6);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  /* Capas base: Mapa (OpenStreetMap) y Satélite (Esri World Imagery, sin API key) */
+  const capaMapa=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     {attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(mieMap);
+  const capaSat=L.layerGroup([
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      {attribution:'Imágenes © Esri, Maxar, Earthstar Geographics',maxZoom:19,maxNativeZoom:18}),
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+      {maxZoom:19,maxNativeZoom:18})
+  ]);
+  L.control.layers({'🗺️ Mapa':capaMapa,'🛰️ Satélite':capaSat},null,{position:'topright',collapsed:false}).addTo(mieMap);
   Object.keys(MIE_COLORS).forEach(k=>mieGroups[k]=L.layerGroup().addTo(mieMap));
   setTimeout(()=>mieMap.invalidateSize(),150);
   mieLoad();
