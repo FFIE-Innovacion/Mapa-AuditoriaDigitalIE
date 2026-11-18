@@ -218,6 +218,20 @@ C_LLAVE = "LLAVE MEN"
 C_INICIO = "FECHA DE INICIO DE OBRA"
 
 
+# Llaves fijas: cuando en SharePoint hay varios proyectos con el mismo nombre de IE,
+# aquí se indica cuál es el que se audita. Clave = nombre de la IE (como en BASE_PM).
+# La llave se busca en cualquier columna de la fila de SharePoint (LLAVE MEN, DANE, código, etc.).
+LLAVES_FIJAS = {
+    "ANTONIO MARIA CLARET": "PCCH2016-3-1",
+}
+LLAVES_BUSCAR = set(LLAVES_FIJAS.values())
+
+
+def llave_fija_de(ie: Any, sede: Any) -> str:
+    fijas = {norm_name(k): v for k, v in LLAVES_FIJAS.items()}
+    return fijas.get(norm_name(ie) + "|" + norm_name(sede)) or fijas.get(norm_name(ie)) or ""
+
+
 def get(row: dict, *keys, default=None):
     for k in keys:
         if k in row and row[k] not in (None, ""):
@@ -314,8 +328,10 @@ def indexar_matriz(matriz: list[dict]) -> dict[str, list[dict]]:
     idx: dict[str, list[dict]] = {}
     for r in matriz:
         dane = norm_dane(get(r, C_DANE))
-        if not dane:
+        fija = next((str(v).strip() for v in r.values() if v is not None and str(v).strip() in LLAVES_BUSCAR), "")
+        if not dane and not fija:
             continue
+        dane = dane or fija
         fila = {
             "mes": parse_month(get(r, *C_MES)),
             "fecha_ejecutada": parse_date(get(r, C_FECHA_EJ)),
@@ -331,6 +347,9 @@ def indexar_matriz(matriz: list[dict]) -> dict[str, list[dict]]:
             "dane_matriz": dane,
         }
         idx.setdefault(dane, []).append(fila)
+        # Llave fija (LLAVES_FIJAS) encontrada en cualquier columna de la fila
+        if fija and fija not in (dane, fila["llave"]):
+            idx.setdefault(fija, []).append(fila)
         # En el Sheet de visitas algunas sedes vienen con la LLAVE MEN (LL1436, 38JA-15…) en vez del DANE
         if fila["llave"] and fila["llave"] != dane:
             idx.setdefault(fila["llave"], []).append(fila)
@@ -428,6 +447,13 @@ def build(visitas, matriz, corte: str, ahora: datetime, fuente_avance: str = "")
     for dane, e in por_ie.items():
         llave = e.get("llave") or ("" if dane.isdigit() or dane.startswith("N:") else dane)
         filas = idx.get(dane, [])
+        fija = llave_fija_de(e["ie"], e["sede"])
+        if fija:
+            if idx.get(fija):
+                llave, filas = fija, idx[fija]
+                print(f"  ✓ Llave fija {fija} aplicada a {e['ie']} — {e['sede']}")
+            else:
+                print(f"  ⚠ Llave fija {fija} NO encontrada en SharePoint para {e['ie']} (se usa el cruce normal)")
         if not filas and dane.startswith("N:"):
             filas = buscar_por_nombre(idx, e["ie"], e["sede"])
         if filas and dane.startswith("N:"):
