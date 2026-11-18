@@ -314,6 +314,7 @@ function avDe(dane,ie,sede){
    visita conservan su histórico; desde el mes de la última visita en adelante manda la Matriz. */
 function avAplicar(row){
   const a=avDe(row.dane,row.ie,row.sede);
+  if(a&&a.estado_acta) row.estadoSP=String(a.estado_acta).trim();
   if(!a||a.avance_pct==null) return row;
   if(a.avance_mes&&row.mes&&row.mes<a.avance_mes) return row;
   row.avanceSheet=row.avance;
@@ -420,7 +421,7 @@ const MIE_LABELS={terminada:'Obra terminada',ejecucion:'En ejecución',suspensio
 function mieNk(s){s=String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');return s.includes('bogot')?'bogota':s;}
 function mieCat(e){e=String(e||'').toUpperCase();
  if(e.includes('TERMINAD'))return 'terminada'; if(e.includes('EJECUCI'))return 'ejecucion';
- if(e.includes('SUSPENSI'))return 'suspension'; if(e.includes('SUSCRITA'))return 'suscrita';
+ if(e.includes('SUSPENSI'))return 'suspension'; if(e.includes('SUSCRIT'))return 'suscrita';
  if(e.includes('INICIO'))return 'inicio'; if(e.includes('REASIGN'))return 'reasignacion';
  if(e.includes('FASE'))return 'fase'; return 'otro';}
 function mieParseCSV(text){const rows=[];let row=[],cur='',q=false;
@@ -452,6 +453,15 @@ function mieDias(d){
 }
 function mieStale(d){ return d.cat!=='terminada' && (()=>{const n=mieDias(d);return n!==null&&n>30;})(); }
 /* cruce con BASE_PM (ya cargado por el dashboard) */
+/* Estado de obra en vivo: mismo archivo de SharePoint del avance (avances.json). Si no hay dato, queda el del Sheets. */
+function mieEstTxt(e){ e=String(e||'').trim().toLowerCase(); return e?e.charAt(0).toUpperCase()+e.slice(1):''; }
+function mieEstadoSP(d){
+  try{
+    const o=mieObra(d); let e=o&&o.estadoSP;
+    if(!e){ const a=avDe('',d.ie,d.sede); if(a&&a.estado_acta) e=String(a.estado_acta).trim(); }
+    if(e){ d.estSheet=d.est; d.est=mieEstTxt(e); d.cat=mieCat(e); d.estFuente='sharepoint'; }
+  }catch(err){}
+}
 function mieObra(d){
   try{
     if(!D.base||!D.base.length) return null;
@@ -1009,6 +1019,7 @@ function mieLoad(){
      Object.values(g).forEach(ix=>{ if(ix.length<2)return; const R=0.055;
        ix.forEach((idx,j)=>{const a=2*Math.PI*j/ix.length; data[idx].lat+=R*Math.cos(a); data[idx].lon+=R*Math.sin(a)*1.02;});});
      data.forEach(d=>{d.visitas=mieBuildVisitas(d);});
+     data.forEach(mieEstadoSP);
      MIE_DATA=data;
      mieMeses();
      mieApply();
@@ -1114,7 +1125,7 @@ function mieRender(DATA){
       +'<div style="font-size:12px"><b>Municipio:</b> '+d.mun+'</div>'
       +'<div style="font-size:12px"><b>Zona:</b> '+d.dep+'</div>'
       +'<div style="margin-top:6px"><span style="background:#FDB913;color:#1E3370;font-weight:800;border-radius:20px;padding:2px 10px;font-size:12px">'+d.vis+' visita'+(d.vis==1?'':'s')+'</span> '
-      +'<span style="color:'+c+';border:1px solid '+c+';border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700">'+(MIE_LABELS[d.cat]||d.est)+'</span>'
+      +'<span style="color:'+c+';border:1px solid '+c+';border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700">'+(d.estFuente==='sharepoint'?d.est:(MIE_LABELS[d.cat]||d.est))+'</span>'
       +(stale?' <span style="background:#FDEAED;color:#D72229;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:800">⚠ '+dias+' días sin vuelo</span>':'')
       +'</div>'
       +obraHtml
