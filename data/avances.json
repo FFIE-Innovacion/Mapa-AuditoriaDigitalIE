@@ -1,5 +1,5 @@
 {
-  "generado_en": "2026-11-18T14:11:47-05:00",
+  "generado_en": "2026-11-18T15:01:51-05:00",
   "mes_corte": "2026-11",
   "fuente_visitas": "Google Sheet · pestaña BASE_PM",
   "fuente_avance": "Seguimiento Vuelos Drones (SharePoint) · pestaña 'Base de datos' · % de avance actual del proyecto",
@@ -177,13 +177,13 @@
       "meses_en_plan": 6,
       "ie_norm": "ANTONIO MARIA CLARET",
       "sede_norm": "ANTONIO MARIA CLARET",
-      "avance_pct": 100.0,
+      "avance_pct": 20.96,
       "avance_mes": null,
       "avance_origen": "matriz_actual",
-      "estado_acta": "TERMINADO",
-      "etapa": "OBRA TERMINADA",
+      "estado_acta": "EN SUSPENSIÓN",
+      "etapa": "OBRA",
       "fase": null,
-      "tipo_intervencion": "Mesas de Diálogo",
+      "tipo_intervencion": "Otras intervenciones",
       "tiene_avance": true
     },
     {
